@@ -27,7 +27,8 @@ if (Test-Path -LiteralPath $S) {
 }
 New-Item -ItemType Directory -Force $S | Out-Null
 
-$FZIP = Join-Path $PSScriptRoot "fzip.exe"
+$FZIP = Join-Path $PSScriptRoot "target\release\fzip.exe"
+if (-not (Test-Path -LiteralPath $FZIP)) { $FZIP = Join-Path $PSScriptRoot "fzip.exe" }
 $SEVENZ = "C:\Program Files\7-Zip\7z.exe"
 $RAR    = "C:\Program Files\WinRAR\Rar.exe"
 $hasSevenZ = Test-Path $SEVENZ
@@ -415,6 +416,36 @@ $kb = [math]::Round((Get-Item "$S\i3.zip").Length/1KB,1)
 $msg = & $FZIP t "$S\i3.zip" 2>&1 | Out-String
 Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'declared size')) `
        "I03 deflate bomb ($kb KB claiming 1 KB, really 200 MB): refused"
+
+# I03b: the same bomb, but sized to take the STREAMING path instead.
+#
+# An entry is streamed to disk once its declared size passes 32 MB, and until
+# 1.3.0 that path had no cap at all: only the buffered path checked. An entry
+# declaring 40 MB and expanding to 200 MB was therefore written to disk in full,
+# and only reported afterwards - by which point the damage is done. The limit now
+# lives where every byte passes through, and is checked BEFORE the write.
+$fs = [System.IO.File]::Create("$S\i3s.zip")
+$z = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create)
+$en = $z.CreateEntry("stream_bomb.bin", [System.IO.Compression.CompressionLevel]::Optimal)
+$st = $en.Open()
+$chunk = New-Object byte[] (4MB)
+for ($i = 0; $i -lt 50; $i++) { $st.Write($chunk, 0, $chunk.Length) }   # 200 MB
+$st.Dispose(); $z.Dispose(); $fs.Dispose()
+# Declare 40 MB (0x02800000): over the 32 MB streaming threshold, far under the truth
+$bb = [System.IO.File]::ReadAllBytes("$S\i3s.zip")
+for ($i = 0; $i -lt $bb.Length-4; $i++) {
+  if ($bb[$i] -eq 0x50 -and $bb[$i+1] -eq 0x4B -and $bb[$i+2] -eq 0x01 -and $bb[$i+3] -eq 0x02) {
+    $bb[$i+24]=0x00; $bb[$i+25]=0x00; $bb[$i+26]=0x80; $bb[$i+27]=0x02
+  }
+  if ($bb[$i] -eq 0x50 -and $bb[$i+1] -eq 0x4B -and $bb[$i+2] -eq 0x03 -and $bb[$i+3] -eq 0x04) {
+    $bb[$i+22]=0x00; $bb[$i+23]=0x00; $bb[$i+24]=0x80; $bb[$i+25]=0x02
+  }
+}
+[System.IO.File]::WriteAllBytes("$S\i3s.zip", $bb)
+$msg = & $FZIP x "$S\i3s.zip" -o "$S\o_i3s" 2>&1 | Out-String
+$written = if (Test-Path "$S\o_i3s\stream_bomb.bin") { (Get-Item "$S\o_i3s\stream_bomb.bin").Length } else { 0 }
+Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'declared size') -and ($written -le 40MB)) `
+       "I03b streaming bomb (declares 40 MB, holds 200 MB): refused, $([math]::Round($written/1MB))MB reached disk"
 
 # I04: exactly 65535 entries. 0xFFFF is the ZIP64 sentinel, so this count must
 # emit a ZIP64 record; a `>` comparison here produced archives fzip could not

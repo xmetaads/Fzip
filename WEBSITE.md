@@ -6,7 +6,7 @@ external requests at all.
 
 ```
 vercel.json       deployment config — the whole setup lives here
-.vercelignore     keeps the Go project out of the upload
+.vercelignore     keeps the Rust project out of the upload
 web/              everything that gets served
   index.html
   usage.md        full command reference
@@ -27,7 +27,7 @@ the dashboard — `vercel.json` at the repository root already declares everythi
 
 | Setting | Value | Why |
 |---|---|---|
-| `outputDirectory` | `web` | The repository root is a Go project; only `web/` is the site. |
+| `outputDirectory` | `web` | The repository root is a Rust project; only `web/` is the site. |
 | `buildCommand` | `null` | There is nothing to build. Static files are served as they are. |
 | `installCommand` | `null` | No `package.json`, no dependencies. Skipping install removes any chance of Vercel trying to guess. |
 | `framework` | `null` | Stops framework auto-detection. |
@@ -60,8 +60,8 @@ declares `https://fzip.org/` as its canonical URL, in `<link rel="canonical">`,
 the Open Graph tags, `sitemap.xml` and the JSON-LD, so nothing else needs
 changing once the domain resolves.
 
-There is **one** build. Fzip 2.0 has no compile-time variants at all — the
-`--no-default-features` build that 1.x offered went away with the RAR support it
+There is **one** build, and no compile-time variants. The
+`--no-default-features` build that 1.0 offered went away with the RAR support it
 existed to remove.
 
 ## The download
@@ -81,7 +81,8 @@ bandwidth at all.
 | Path | Goes to |
 |---|---|
 | `/download/fzip.exe` | the newest release, always |
-| `/download/fzip-1.0.2-x64.exe` | the `v1.0.2` tag specifically, so a pinned link never breaks |
+| `/download/fzip-1.3.0-x64.exe` | the `v1.3.0` tag specifically, so a pinned link never breaks |
+| `/download/fzip-1.0.2-x64.exe` | `/#download` — superseded |
 | `/download/fzip-1.0.1-x64.exe` | `/#download` — that build is withdrawn |
 | `/download/fzip-1.0.0-x64.exe` | `/#download` — that build no longer exists |
 | `/releases` | the releases page |
@@ -114,17 +115,37 @@ to it and the site is consistent — but it has two costs worth knowing:
   to the download section instead, because pointing it at a tag that holds a
   *different* build would be worse than a dead link.
 
-From 2.0.0 onwards each version gets its own tag — `v2.0.0`, then `v2.0.1` and
+From 1.3.0 onwards each version gets its own tag — `v1.3.0`, then `v1.3.1` and
 so on — published as a new release rather than by editing an existing one. Every
 version then keeps its own permanent URL, and `latest/download/fzip.exe` still
 follows the newest automatically.
 
+### Code signing
+
+Sign **before** computing the hash and before uploading. Signing rewrites the
+file, so a binary signed after publication no longer matches what the site says,
+and anyone who checked the hash first is left holding a mismatch.
+
+```powershell
+signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+  /n "Tcoder LLC" target\release\fzip.exe
+signtool verify /pa /v target\release\fzip.exe
+```
+
+The `/tr` timestamp matters: without it the signature stops validating the day
+the certificate expires, and every copy already downloaded starts warning. With
+it, the signature stays valid for the lifetime of the timestamp authority's own
+certificate.
+
+The order for a release is therefore: build → sign → verify → hash → upload →
+update the site.
+
 ### Publishing a new version
 
-1. `go build -trimpath -ldflags "-s -w" -o fzip.exe .` — commit first, so the
-   version stamp Go embeds records a clean commit rather than `+dirty`.
-2. Draft a **new** release on GitHub, tagged `vX.Y.Z`, and attach `fzip.exe`
-   from the repository root. Do not edit an existing release — that is how 1.0.0
+1. `cargo build --release`. The binary lands at `target\release\fzip.exe`.
+   Sign it now, per the section above.
+2. Draft a **new** release on GitHub, tagged `vX.Y.Z`, and attach
+   `target\release\fzip.exe`. Do not edit an existing release — that is how 1.0.0
    was lost. **The asset must keep the exact name `fzip.exe`**; the
    `latest/download/fzip.exe` URL resolves by filename, so renaming it breaks
    every existing link. Confirm GitHub marks the new release as **Latest**,
@@ -136,9 +157,18 @@ follows the newest automatically.
    1.0.1.
 3. Add a pinned redirect for the new tag in `vercel.json`, alongside the
    existing one, so old versioned links keep working.
-4. Update the SHA-256 and byte size in four places: `X-Fzip-*` in `vercel.json`,
-   the `.hash` block and JSON-LD `fileSize` in `web/index.html`, and the
-   verification sections of `usage.md` and `llms.txt`.
+4. Run `.\update_hash.ps1`. It takes the SHA-256 and byte size from the built
+   binary and writes them into all five places that publish them: `X-Fzip-*` in
+   `vercel.json`, the `.hash` block and JSON-LD `fileSize` in `web/index.html`,
+   and the verification sections of `usage.md`, `llms.txt` and `README.md`. It
+   also reports whether the binary is signed, and warns if it is not.
+
+   **Run it after signing, not before.** Authenticode rewrites the file, so a
+   hash taken from an unsigned build does not match what anyone downloads — and
+   the publisher never notices, because they do not re-check their own release.
+
+   `MICROSOFT-REPLY.md` is left alone on purpose: it quotes the 1.0.1 hash as
+   evidence in an open case, and that must not be rewritten. Edit it by hand.
 5. Commit and push. Vercel deploys on push.
 
 Verify what you published actually matches what the site claims:
@@ -172,7 +202,7 @@ another copy.
 Releases give you a permanent URL per version, a download counter, and no repo
 bloat.
 
-1. Build: `go build -trimpath -ldflags "-s -w" -o fzip.exe .`
+1. Build: `cargo build --release`
 2. On GitHub: **Releases → Draft a new release**, tag `vX.Y.Z`, attach
    `fzip.exe`.
 3. Your download URL is then:

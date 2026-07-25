@@ -1,8 +1,6 @@
+/target
+
 # Built binaries live in GitHub Releases, not in git. fzip.org/download/fzip.exe
 # redirects there; see WEBSITE.md for the release procedure.
 /fzip.exe
 /web/download/
-
-# resource.syso is deliberately NOT ignored. Committing it means an ordinary
-# `go build` produces the icon, manifest and version resource without anyone
-# having to install a resource compiler first.

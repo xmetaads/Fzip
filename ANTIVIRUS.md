@@ -4,19 +4,23 @@ Users report `Trojan:Win32/Wacatac.B!ml` and `Trojan:Win32/Wacapew.C!ml` from
 Microsoft Defender. This document reports what was actually tested, not what
 sounds plausible.
 
-> **Scope.** The experiments below were run against Fzip **1.x**, which was
-> written in Rust and statically linked UnRAR. They are kept because their
-> conclusion is about the detection mechanism rather than about that particular
-> binary, and it still holds: the verdict follows a **file hash**, driven by the
-> absence of a code signature and near-zero download history.
+> **Scope.** The experiments below were run against Fzip **1.0**, which
+> statically linked UnRAR. Their conclusion is about the detection mechanism
+> rather than about that particular binary, and it still holds: the verdict
+> follows a **file hash**, driven by the absence of a code signature and
+> near-zero download history.
 >
-> **Fzip 2.0 is written in Go, and that did not change the situation** — which
-> is exactly what the language experiment below predicted. A minimal Rust
-> program and a minimal Go program both scanned clean, so the language was never
-> the variable. Rewriting in Go was done for other reasons; anyone hoping it
-> would settle the antivirus question should read the table below first.
+> Two things were tried in the meantime and neither settled it. Rewriting in Go
+> did not (2.0.0) — exactly as the language experiment below predicted, since a
+> minimal Rust program and a minimal Go program both scanned clean. Nor did
+> removing UnRAR, whose unused privilege imports had been the leading suspect;
+> builds with and without it were equally clean across six trials.
 >
-> A code-signing certificate for Tcoder LLC remains the only durable fix.
+> **1.3.0 is code-signed, which is the fix.** What the rewrite and the format
+> cull did contribute is a binary with nothing left to explain: no privilege
+> APIs, no third-party C++, half the size, and an import table of five Windows
+> system DLLs. That does not make a model's verdict impossible, but it removes
+> every reason an analyst reviewing it could have for hesitating.
 
 ## Summary of findings
 

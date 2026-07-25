@@ -9,7 +9,9 @@ $B = Join-Path $env:TEMP "fzip_bench"
 if (Test-Path -LiteralPath $B) { Remove-Item -LiteralPath $B -Recurse -Force -Confirm:$false }
 New-Item -ItemType Directory -Force $B | Out-Null
 
-$FZIP = Join-Path $PSScriptRoot "fzip.exe"
+$FZIP = Join-Path $PSScriptRoot "target\release\fzip.exe"
+if (-not (Test-Path -LiteralPath $FZIP)) { $FZIP = Join-Path $PSScriptRoot "fzip.exe" }
+if (-not (Test-Path -LiteralPath $FZIP)) { throw "fzip.exe not found - run: cargo build --release" }
 $SEVENZ = "C:\Program Files\7-Zip\7z.exe"
 $WINRAR = "C:\Program Files\WinRAR\WinRAR.exe"
 $RAR    = "C:\Program Files\WinRAR\Rar.exe"
@@ -109,15 +111,29 @@ for ($k = 0; $k -lt $big.Length; $k += 4096) { $big[$k] = [byte]($k % 251) }
 if (Test-Path $SEVENZ) {
   & $SEVENZ a -tzip -mx=1 "$B\huge.zip" "$B\huge.bin" -bso0 -bsp0 | Out-Null
   Remove-Item "$B\huge.bin" -Force
-  foreach ($tool in @(@('fzip', $FZIP, @('x', "$B\huge.zip", '-o', "$B\hugeout_f", '-q')),
+  foreach ($tool in @(@('fzip', $FZIP, @('x', "$B\huge.zip", '-o', "$B\hugeout_f", '-q', '--no-pause')),
                       @('7-Zip', $SEVENZ, @('x', "$B\huge.zip", "-o$B\hugeout_7", '-y', '-bso0', '-bsp0')))) {
     $p = Start-Process -FilePath $tool[1] -ArgumentList $tool[2] -PassThru -NoNewWindow
     $peak = 0
-    while (-not $p.HasExited) {
+    # Re-query by PID each tick rather than trusting the cached object. With
+    # -NoNewWindow this host does not always keep a usable handle, and
+    # $p.HasExited can then stay false forever after the process is gone - which
+    # hung this script for sixteen minutes before it was noticed. Get-Process
+    # returning nothing is the reliable "it exited" signal, and the timeout is
+    # the backstop so a benchmark can never block a release again.
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($sw.Elapsed.TotalSeconds -lt 300) {
       Start-Sleep -Milliseconds 50
-      try { $p.Refresh(); if ($p.WorkingSet64 -gt $peak) { $peak = $p.WorkingSet64 } } catch {}
+      $live = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+      if (-not $live) { break }
+      if ($live.WorkingSet64 -gt $peak) { $peak = $live.WorkingSet64 }
     }
-    "{0,-14} peak RAM {1,7:N1} MB" -f $tool[0], ($peak/1MB)
+    if ($sw.Elapsed.TotalSeconds -ge 300) {
+      "{0,-14} TIMED OUT after 300s" -f $tool[0]
+      try { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } catch {}
+    } else {
+      "{0,-14} peak RAM {1,7:N1} MB" -f $tool[0], ($peak/1MB)
+    }
   }
 }
 Write-Output ""

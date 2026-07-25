@@ -1,0 +1,15 @@
+# Control Flow Guard is a Windows exploit-mitigation feature: the compiler
+# records every legal indirect-call target and the OS checks calls against that
+# list at run time. Shipping without it is a missing hardening measure, and its
+# absence is one of the signals Defender's machine-learning models weigh when
+# deciding whether an unsigned binary looks trustworthy.
+#
+# crt-static links the Microsoft C runtime into the executable instead of
+# importing VCRUNTIME140.dll. Without it, Fzip depends on the Visual C++
+# Redistributable, which is NOT part of a clean Windows install - so the one
+# promise the product makes, that you can copy a single .exe anywhere and run
+# it, would be false on exactly the machines least likely to have developer
+# tooling. It costs a few hundred KB and removes an entire class of
+# "the application was unable to start correctly (0xc000007b)" reports.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "control-flow-guard=yes", "-C", "target-feature=+crt-static"]

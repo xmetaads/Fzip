@@ -218,8 +218,8 @@ These follow the 7-Zip convention, so existing scripts keep working.
 
 **Extracts:** `.zip`. **Creates:** `.zip`, optionally with AES-256.
 
-That is the entire list. Fzip 1.x also read `.rar`, `.7z`, `.tar`, `.gz`,
-`.bz2`, `.xz` and `.zst`; version 2.0 dropped all of them. If you hand Fzip one
+That is the entire list. Fzip 1.0 also read `.rar`, `.7z`, `.tar`, `.gz`,
+`.bz2`, `.xz` and `.zst`; version 1.2 dropped all of them. If you hand Fzip one
 of those it tells you which format it is and stops:
 
 ```
@@ -255,7 +255,7 @@ The password really is wrong. fzip verifies the password against an authenticati
 The archive contains an entry that tried to write outside the destination folder (a zip-slip attack) or that is named after a Windows device. fzip blocks it and tells you exactly which entry.
 
 **It will not open my `.rar` / `.7z` any more.**
-Correct, and deliberate. Version 2.0 reads zip only. Version 1.x read those formats; if you need them, keep a tool that does.
+Correct, and deliberate. Fzip reads zip only from 1.2 onwards. Version 1.0 read those formats; if you need them, keep a tool that does.
 
 **Windows' own `tar.exe` extracted my zip just as fast.**
 On some archives it will — they are within a couple of percent of each other. Fzip's clear margins are over 7-Zip and WinRAR (roughly 2.2× at extracting, 2.7× at creating), and on archives with many entries where the work spreads across cores. The numbers and the exact test archive are in the [README](README.md).

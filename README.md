@@ -1,19 +1,17 @@
 # Fzip
 
-**Published by Tcoder LLC.** MIT licensed.
+**Published by Tcoder LLC.** MIT licensed. Code-signed.
 
 A single-file, no-install zip tool for Windows. Portable in the spirit of
 Microsoft's `azcopy.exe` — one self-contained `.exe` you copy anywhere and drive
-from the command line.
+from the command line. (That comparison is about how the tool is *shipped*, not
+how it is built: azcopy is written in Go, Fzip in Rust.)
 
 **Reads** zip · **Writes** zip, optionally encrypted with AES-256
 
 ```bash
 fzip x archive.zip
 ```
-
-Written in Go, with **no third-party dependencies** — the only code in the binary
-is this repository and the Go standard library.
 
 ---
 
@@ -30,90 +28,82 @@ AMD Ryzen AI 9 465 (20 threads), Windows 11. 303 files / 183.3 MB (77.8 MB
 compressed, including 120 MB of barely-compressible binary). Best of 3 runs.
 Reproduce with `.\run_bench.ps1`.
 
-**Extracting ZIP:**
+**Extracting ZIP** — the main use case:
 
 | Tool | Time | Relative |
 |---|---|---|
-| tar.exe (built into Windows 11) | **0.831 s** | fastest |
-| **fzip** | 0.846 s (217 MB/s) | 1.02× slower |
-| 7-Zip | 1.814 s | 2.18× slower |
-| WinRAR | 1.861 s | 2.24× slower |
-| .NET `ZipFile` | 2.644 s | 3.18× slower |
+| **fzip** | **0.668 s** (274 MB/s) | fastest |
+| tar.exe (built into Windows 11) | 0.821 s | 1.23× slower |
+| WinRAR | 1.670 s | 2.50× slower |
+| 7-Zip | 1.794 s | 2.69× slower |
+| .NET `ZipFile` | 2.647 s | 3.96× slower |
 
 **Creating ZIP** (default level):
 
 | Tool | Time | Output |
 |---|---|---|
-| **fzip -mx5** | **1.328 s** | 74.3 MB |
-| 7-Zip -mx5 | 3.544 s (2.67× slower) | 75.8 MB |
-| .NET `ZipFile` | 17.580 s (13.2× slower) | 77.8 MB |
+| **fzip -mx5** | **1.526 s** | 77.8 MB |
+| 7-Zip -mx5 | 3.413 s (2.24× slower) | 75.8 MB |
+| .NET `ZipFile` | 17.423 s (11.4× slower) | 77.8 MB |
+
+7-Zip's deflate encoder squeezes out about 2.6% more; Fzip trades that for
+roughly double the speed. Use `-mx9` when size matters more.
 
 **Verifying only**, which isolates decompression from the disk:
 
 | Tool | Time | Throughput |
 |---|---|---|
-| **fzip t** | **0.507 s** | 362 MB/s |
-| 7-Zip t | 1.413 s (2.79× slower) | 130 MB/s |
+| **fzip t** | **0.314 s** | 584 MB/s |
+| 7-Zip t | 1.403 s (4.47× slower) | 131 MB/s |
 
-**Peak RAM** on a single 200 MB member: fzip 6.9 MB, 7-Zip 8.0 MB.
+**Peak RAM** on a single 200 MB member: fzip 7.5 MB, 7-Zip 8.0 MB. Fzip streams
+entries above 32 MB to disk instead of buffering them, so this figure does not
+grow with the archive.
 
-### Read these numbers honestly
+Throughput depends on what is in the archive. The one above is deliberately
+hostile — two thirds is near-random binary that will not compress, so storage
+dominates. On an archive of ordinary documents the same binary verifies far
+faster; the worker-count table in [web/usage.md](web/usage.md) uses one of those
+and reaches a different number. Both are real. Neither is *the* number.
 
-- **Extraction is a tie with `tar.exe`**, not a win. Windows ships a competent
-  ZIP extractor and on this archive it is 2% ahead. The margin over 7-Zip and
-  WinRAR is real — roughly 2.2× — but "fastest on Windows" would be false, so it
-  is not claimed.
-- **Throughput depends on how compressible the archive is.** The archive above
-  is deliberately hostile: two thirds of it is near-random binary that will not
-  compress, so storage dominates. On an archive of ordinary documents the same
-  binary verifies at 1,304 MB/s. Both numbers are real; neither is *the* number.
-- **Fzip 1.x extracted faster.** That release was written in Rust and used
-  libdeflate, which decompresses faster than Go's `compress/flate`. The move to
-  Go cost roughly 25% on the extract path. It bought a binary with no
-  third-party code in it; that trade was made deliberately, not accidentally.
+## What changed in 1.2 and 1.3
 
-## What changed in 2.0
-
-Fzip 2.0 is a rewrite in Go, and it reads **zip only**. Version 1.x also read
-rar, 7z, tar, gz, bz2, xz and zst; all of that is gone. Hand Fzip one of those
-and it names the format rather than reporting a broken zip:
+Fzip reads **zip only**. Version 1.0 also read rar, 7z, tar, gz, bz2, xz and zst;
+1.2 dropped all of them. Hand Fzip one of those and it names the format rather
+than reporting a broken zip:
 
 ```
 > fzip x archive.rar
 fzip: archive.rar is a RAR archive, and this version reads zip only
 ```
 
-If you need those formats, keep a tool that has them. Details in
-[CHANGELOG.md](CHANGELOG.md).
+If you need those formats, keep a tool that has them. 1.3 is the first
+code-signed release; see [CHANGELOG.md](CHANGELOG.md) for what it fixed.
 
 ## Install
 
 Download: **<https://fzip.org/download/fzip.exe>**
 
 There is no installer. Download `fzip.exe` and run it. It needs no runtime, no
-DLLs and no registry entries.
+DLLs and no registry entries — the C runtime is linked into the executable, so
+there is no Visual C++ Redistributable to install first.
 
-Verify what you downloaded:
+Check what you downloaded. The signature is the better test, because it does not
+depend on you having read the hash from an uncompromised page:
 
 ```powershell
+Get-AuthenticodeSignature fzip.exe | Format-List Status, SignerCertificate
 Get-FileHash fzip.exe -Algorithm SHA256
-# 13F68A2E8B215D29482DF07121FDF325A3B6B1C466ADA76C5F57B1DDE638F629
+# 3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C
 ```
 
-Go also records the source inside the executable, which is a stronger check than
-the hash alone:
+`Status` should read `Valid` and the signer should be Tcoder LLC.
 
-```powershell
-go version -m fzip.exe
-```
-
-> **Seeing an antivirus warning such as `Wacatac.B!ml`?** It is a
-> machine-learning false positive. [ANTIVIRUS.md](ANTIVIRUS.md) documents what
-> was measured rather than assumed: the implementation language is not the cause
-> (a minimal Rust binary and a minimal Go binary both scan clean), no single
-> dependency was the cause, and the same source recompiled can flip the verdict.
-> It attaches to a **file hash**, driven by the absence of a code signature and
-> zero download history. A code-signing certificate is the only real fix.
+> **Seeing an antivirus warning such as `Wacatac.B!ml`?**
+> [ANTIVIRUS.md](ANTIVIRUS.md) documents what was measured rather than assumed:
+> the verdict followed a **file hash**, not the code, not the implementation
+> language (a minimal Rust binary and a minimal Go binary both scan clean), and
+> not any single dependency. Signing is the durable fix and 1.3 is signed.
 
 ## Usage
 
@@ -127,9 +117,9 @@ fzip a <archive.zip> <files...>   create a zip
 
 | Option | Meaning |
 |---|---|
-| `-o <dir>` | output folder (default: the archive name) |
-| `-p <pass>` | password; prompts securely if omitted |
-| `-t <n>` | worker count (default: every core) |
+| `-o <dir>` | output folder (default: the archive name, beside the archive) |
+| `-p <pass>` | password; prompts securely if the value is omitted |
+| `-t <n>` | worker threads (default: every core) |
 | `-i <glob>` | include only matching names |
 | `-x <glob>` | exclude matching names |
 | `-e` | flatten: ignore folder structure |
@@ -149,20 +139,14 @@ Full reference: [web/usage.md](web/usage.md), also served at
 
 ## Building
 
-Requires Go 1.24 or newer. There is nothing to fetch — the module has no
-dependencies.
+Requires Rust 1.85 or newer, MSVC toolchain.
 
 ```bash
-go build -trimpath -ldflags "-s -w" -o fzip.exe .
+cargo build --release
 ```
 
-The icon, manifest and version resource come from `resource.syso`, which is
-committed so an ordinary build needs no extra tooling. Regenerate it only when
-`versioninfo.json`, `fzip.manifest` or `brand/fzip.ico` change:
-
-```bash
-go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0 -o resource.syso versioninfo.json
-```
+`.cargo/config.toml` turns on Control Flow Guard and links the C runtime
+statically. Both matter for what ships — see the comments in that file.
 
 Windows only. The console handling, path rules and memory mapping are written
 directly against the Win32 API, so there is no portable build.
@@ -170,39 +154,55 @@ directly against the Win32 API, so there is no portable build.
 ## Testing
 
 ```powershell
-go test ./...          # 18 unit tests
-.\run_tests.ps1        # 66 integration tests
+cargo test --release   # 15 unit tests
+cargo clippy --release --all-targets
+.\run_tests.ps1        # 67 integration tests
 .\run_bench.ps1        # comparative benchmark
 ```
-
-`go vet ./...` reports one diagnostic, on the memory-mapping call: turning the
-address the OS hands back into a slice needs a `uintptr` → `unsafe.Pointer`
-conversion that vet cannot verify. It is checked at runtime instead, and
-`go test -gcflags=all=-d=checkptr=1 ./...` passes. The reasoning is written out
-in [winapi_windows.go](winapi_windows.go).
 
 ## Safety
 
 Fzip opens files it did not create, so the hostile cases are tested rather than
 assumed: path traversal, reserved Windows device names, paths past 260
-characters, zip bombs, corrupt central directories, and offsets crafted to index
-out of range. Each has a regression test in `run_tests.ps1`, sections C and I.
+characters, zip bombs on both the buffered and streaming paths, corrupt central
+directories, and offsets crafted to index out of range. Each has a regression
+test in `run_tests.ps1`, sections C and I.
 
 Encrypted entries are authenticated **before** decryption, so tampered data is
 rejected rather than decoded into garbage.
 
+### What is in the binary
+
+Checked before signing, and worth re-checking on every release:
+
+| Check | Result |
+|---|---|
+| Control Flow Guard | present |
+| ASLR, DEP, high-entropy address space | present |
+| Privilege APIs imported | none |
+| Process injection, registry writing, network APIs | none |
+| Imported DLLs | `kernel32`, `ntdll`, `user32`, `bcryptprimitives`, `dbghelp` |
+| `.text` entropy | 6.33 — ordinary compiled code, not packed |
+| Dependency graph | 78 crates, down from 130 in 1.0.2 |
+
+One import worth naming before anyone else does: **`IsDebuggerPresent`**. It is
+not in Fzip's source — it arrives with the statically linked MSVC C runtime,
+which calls it on the abort path. Linking the runtime dynamically would move it
+into `VCRUNTIME140.dll` rather than remove the call, at the cost of requiring the
+Visual C++ Redistributable. For scale: Windows' own `tar.exe` and WinRAR's
+`Rar.exe` import it too.
+
 ## Layout
 
 ```
-main.go             entry point, format detection, the double-click pause
-cli.go              argument parsing, glob filters, help
-common.go           exit codes, formatting, DOS timestamps, progress bar
-safepath.go         zip-slip defence, device names, long paths
-crypto.go           WinZip AES-256/192/128 and legacy ZipCrypto
-zipread.go          parsing, decryption, parallel decompression
-zipwrite.go         parallel compression, ZIP64, AES-256
-winapi_windows.go   console, password prompt, memory mapping
-fzip_test.go        unit tests
+src/main.rs         entry point, format detection, the double-click pause
+src/cli.rs          argument parsing, glob filters, help
+src/common.rs       exit codes, formatting, DOS timestamps, progress bar
+src/safepath.rs     zip-slip defence, device names, long paths
+src/crypto.rs       WinZip AES-256/192/128 and legacy ZipCrypto
+src/zipread.rs      parsing, decryption, parallel decompression
+src/zipwrite.rs     parallel compression, ZIP64, AES-256
+build.rs            icon, manifest and version resource
 web/                the fzip.org site — see WEBSITE.md
 brand/              logo and icon sources
 ```

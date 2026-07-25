@@ -1,8 +1,8 @@
 # Fzip — command reference
 
-Version 2.0.0 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
+Version 1.3.0 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
 
-Fzip is a command-line archive tool. It has no graphical interface: you type a
+Fzip is a command-line zip tool. It has no graphical interface: you type a
 command, it does the work and prints what happened. It decompresses every file
 in an archive at the same time, one worker per CPU core.
 
@@ -169,8 +169,8 @@ if ($LASTEXITCODE -ge 2) { throw "fzip failed with exit code $LASTEXITCODE" }
 
 **Reads:** zip. **Writes:** zip, with optional AES-256.
 
-That is the whole list. Version 1.x also read rar, 7z, tar, gz, bz2, xz and zst;
-version 2.0 dropped them. If you hand Fzip one of those it names the format and
+That is the whole list. Fzip 1.0 also read rar, 7z, tar, gz, bz2, xz and zst;
+1.2 dropped them. If you hand Fzip one of those it names the format and
 stops, rather than reporting a corrupt zip:
 
 ```
@@ -237,19 +237,20 @@ not distort the result. Five runs at each worker count, best taken:
 
 | Workers | Time | Throughput | Versus one worker |
 |---|---|---|---|
-| 1 | 0.947 s | 181 MB/s | 1.00× |
-| 2 | 0.540 s | 318 MB/s | 1.76× |
-| 4 | 0.271 s | 633 MB/s | 3.50× |
-| 8 | 0.182 s | 944 MB/s | 5.22× |
-| 12 | 0.149 s | 1151 MB/s | 6.36× |
-| 20 | 0.132 s | 1304 MB/s | 7.20× |
+| 1 | 0.287 s | 599 MB/s | 1.00× |
+| 2 | 0.158 s | 1087 MB/s | 1.81× |
+| 4 | 0.084 s | 2040 MB/s | 3.41× |
+| 8 | 0.094 s | 1817 MB/s | 3.03× |
+| 12 | 0.098 s | 1757 MB/s | 2.93× |
+| 20 | 0.091 s | 1892 MB/s | 3.16× |
 
-Seven times the throughput of a single worker, and still climbing at twenty
-because the archive holds 360 independent entries to share out.
+Three and a half times a single worker, levelling off at four. Past that the
+whole archive finishes in under a tenth of a second and thread scheduling costs
+more than it saves, which is why the last three rows wobble instead of climbing.
 
-Extracting the same archive to an SSD takes about 0.70 s — roughly 245 MB/s end
-to end, against 119 MB/s on a single worker. Writing sets the pace there, not
-decompression.
+Extracting the same archive to an SSD takes about 0.54 s — roughly 318 MB/s end
+to end, against 277 MB/s on a single worker. Writing sets the pace there, not
+decompression, which is why the gap nearly disappears.
 
 **Where this does not help:** an archive holding one enormous entry has nothing
 to parallelise, and neither does extraction to slow storage. Fzip's advantage
@@ -277,11 +278,13 @@ Every item below is covered by an automated regression test.
   than decoded into garbage.
 - **CRC is verified on every entry** by default.
 - **Memory stays flat.** Entries above 32 MB stream straight to disk; peak usage
-  is about 7 MB regardless of archive size. The exception is an encrypted entry,
+  is about 7.5 MB regardless of archive size. The exception is an encrypted entry,
   whose authentication code covers the whole payload and so has to be held in
   memory to be checked; `--max-memory` caps that.
-- **No third-party code.** Fzip depends on nothing outside the Go standard
-  library, so there is no supply chain to compromise.
+- **Nothing privileged is imported.** No `AdjustTokenPrivileges`, no process
+  injection, no registry writing. The import table is five Windows system DLLs,
+  and the C runtime is linked in rather than imported, so there is no Visual C++
+  Redistributable to install.
 
 ---
 
@@ -291,32 +294,34 @@ Every item below is covered by an automated regression test.
 Get-FileHash fzip.exe -Algorithm SHA256
 ```
 
-Version 2.0.0:
+Version 1.3.0:
 
 ```
-SHA-256  13F68A2E8B215D29482DF07121FDF325A3B6B1C466ADA76C5F57B1DDE638F629
-Size     2,541,568 bytes
+SHA-256  3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C
+Size     1,612,288 bytes
 ```
 
-That hash identifies the published binary. Compiling the source yourself may
-produce a different hash — that is expected, not a sign of tampering.
-
-Fzip has **no third-party dependencies**, so building it yourself means compiling
-this repository against the Go standard library and nothing else. The executable
-also records where it came from:
+The binary is also **code-signed by Tcoder LLC**, so Windows can name the
+publisher before you run it:
 
 ```powershell
-go version -m fzip.exe
+Get-AuthenticodeSignature fzip.exe | Format-List Status, SignerCertificate
 ```
 
-That prints the module path and the exact commit the binary was built from.
+`Status` should read `Valid`. That is a stronger check than the hash, because it
+does not depend on you having got the hash from an uncompromised page.
+
+Compiling the source yourself produces a functionally identical executable with
+a *different* hash, because Rust builds are not bit-for-bit reproducible — that
+is expected, not a sign of tampering. Every dependency is pinned in
+`Cargo.lock`.
 
 ### If Windows Defender blocks the download
 
-Fzip is not yet code-signed. An unsigned executable that a scanner has never seen
-before carries no reputation, and Defender's cloud model sometimes returns a
-malicious verdict on that basis alone — usually `Trojan:Win32/Wacatac.B!ml`.
-Version 1.0.1 was blocked this way.
+Signing largely settles this, but a brand-new certificate carries no reputation
+of its own at first, and Defender's cloud model can return a malicious verdict
+on an unfamiliar file — usually `Trojan:Win32/Wacatac.B!ml`. Version 1.0.1 was
+blocked this way while unsigned.
 
 The verdict attaches to a **specific file hash**, not to the program. We measured
 this: the published 1.0.1 file was blocked on every download, while the identical

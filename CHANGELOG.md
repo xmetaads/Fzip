@@ -3,6 +3,81 @@
 All notable changes to **Fzip**, published by Tcoder LLC.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-07-25
+
+Back to **Rust**, still **zip only**. This is the build intended for code
+signing, so the work went into what a signature actually vouches for: nothing
+unnecessary linked in, nothing imported that is never called, and no path where
+hostile input reaches the disk before it is checked.
+
+The version number returns to the 1.x line because that is where the Rust
+implementation left off. 2.0.0 was the Go build; it is superseded.
+
+### Fixed
+
+- **A zip bomb could write to disk unchecked.** Entries above 32 MB stream
+  rather than buffer, and until now that path had **no size cap at all** —
+  only the buffered path checked. An entry declaring 40 MB and expanding to
+  200 MB was written to disk in full and reported afterwards, which is too late
+  to matter. The bzip2, zstd and xz paths had the cap; DEFLATE, the method
+  almost every real zip uses, did not.
+
+  The limit now sits in the one place every byte passes through, and is checked
+  **before** the write, so oversized bytes never reach the filesystem. Regression
+  test `I03b` confirms exactly 40 MB — the declared size — lands on disk instead
+  of 200 MB.
+- **The zip-bomb refusal read as decoder jargon.** A caught bomb reported
+  *"Output limit exceeded, set limit was 1088 and output size is 1292"*. Both
+  paths now say the same plain thing: the entry expands beyond its declared size.
+
+### Changed
+
+- **The C runtime is now linked statically** (`-C target-feature=+crt-static`).
+  Fzip previously imported `VCRUNTIME140.dll`, which is part of the Visual C++
+  Redistributable and **not** part of a clean Windows install — so the product's
+  central promise, that you can copy one .exe anywhere and run it, was false on
+  exactly the machines least likely to have developer tooling. The import table
+  is now nothing but genuine Windows system DLLs. Costs 98 KB.
+- **The version resource no longer claims to include UnRAR.** It did until 1.1;
+  the string outlived the code.
+- **The dependency graph went from 130 crates to 78** — thirteen direct
+  dependencies removed along with the formats they served, and 52 crates fewer
+  once their transitive dependencies go too. Among them RARLAB's UnRAR C++
+  sources, which are the whole WinRAR utility rather than just an extractor, and
+  which brought `AdjustTokenPrivileges`, `OpenProcessToken`,
+  `LookupPrivilegeValueW` and `AllocateAndInitializeSid` into the import table
+  from shutdown and administrator-check code Fzip never called. Verified absent:
+  the binary now imports no privilege API at all.
+- **1.54 MB, down from 2.87 MB** in 1.0.2.
+
+### Verified before signing
+
+| Check | Result |
+|---|---|
+| Control Flow Guard | present |
+| ASLR, DEP, high-entropy address space | present |
+| Privilege APIs in the import table | none |
+| Process injection, registry writing, network APIs | none |
+| Imported DLLs | `kernel32`, `ntdll`, `user32`, `bcryptprimitives`, `dbghelp` only |
+| `.text` entropy | 6.33 — ordinary compiled code, not packed |
+| Defender scan, with and without Mark-of-the-Web | clean |
+| Tests | 67 integration, 15 unit, none skipped; clippy clean |
+
+One import is worth naming rather than leaving to be found: `IsDebuggerPresent`
+appears in the table. It is not in Fzip's source — the statically linked MSVC C
+runtime calls it on its abort path. Linking dynamically would hide it inside
+`VCRUNTIME140.dll` rather than remove it, and would reintroduce the redistributable
+dependency this release just removed. Windows' own `tar.exe` and WinRAR's
+`Rar.exe` import it as well.
+
+### Note on the antivirus question
+
+Signing is the fix, and it is the publisher's to apply. Nothing in this release
+changes the earlier measurement: the `Wacatac.B!ml` verdict followed a **file
+hash**, not the language, not a dependency, and not Mark-of-the-Web. See
+[ANTIVIRUS.md](ANTIVIRUS.md). What this release does is remove every reason an
+analyst could have for hesitating over what is inside the file.
+
 ## [2.0.0] - 2026-07-25
 
 Fzip is now written in **Go**, and reads **zip only**. Both are breaking changes,

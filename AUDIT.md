@@ -4,13 +4,17 @@ Product: **Fzip** · Publisher: **Tcoder LLC** · Version 1.0.0
 
 Audited 2026-07-25 against 7-Zip 25.x and WinRAR 7.x. Method: purpose-built malicious and edge-case archives, plus real process-memory measurement.
 
-> **Scope.** This audit was carried out against the **1.x** implementation, which
-> was written in Rust. Fzip 2.0 is a rewrite in Go and shares none of that source.
+> **Scope.** This audit was carried out against **1.0**, and the shipping
+> implementation still descends directly from that source, so every finding below
+> remains live rather than historical. Each has a regression test in
+> `run_tests.ps1`, and all of them pass on the current build.
 >
-> The audit is kept because its findings were the specification for the rewrite:
-> every defect recorded below was carried into 2.0 as a regression test *before*
-> the corresponding code was written, and all of those tests pass. The sections
-> on formats other than zip are historical only — 2.0 reads zip and nothing else.
+> Two things have changed since. The sections covering rar, 7z, tar, gz, bz2, xz
+> and zst describe formats **1.2 removed**; read those as history. And one defect
+> the audit did *not* catch was found later, in 1.3: the streaming decompression
+> path had no size cap, so a zip bomb declaring more than 32 MB was written to
+> disk in full before being reported. The buffered path was checked; the streamed
+> one was not. Test `I03b` covers it now.
 
 ## Verdict
 
