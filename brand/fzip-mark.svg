@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Fzip">
+  <title>Fzip</title>
+  <!--
+    The mark is the letter F built from three bars of different length.
+    Read as a letter it says Fzip; read as bars it says what the tool does —
+    several lanes of work running side by side, the longest finishing first.
+    One colour, no gradient below 32px, so it stays legible as a 16px favicon.
+  -->
+  <defs>
+    <linearGradient id="fzipAmber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F5A524"/>
+      <stop offset="1" stop-color="#E07B10"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#fzipAmber)"/>
+  <g fill="#fff">
+    <rect x="17" y="14" width="7" height="36" rx="3.5"/>
+    <rect x="17" y="14" width="32" height="7" rx="3.5"/>
+    <rect x="17" y="28" width="22" height="7" rx="3.5"/>
+  </g>
+</svg>

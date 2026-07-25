@@ -1,0 +1,153 @@
+# Fzip
+
+> A command-line archive tool for Windows that decompresses every file in an
+> archive at the same time, one worker per CPU core. It has no graphical
+> interface: it is driven entirely from cmd.exe or PowerShell, the way a
+> file-transfer CLI is. One portable 2.8 MB executable, no installer, no runtime,
+> no registry entries. Written in Rust, published by Tcoder LLC under the MIT
+> licence.
+
+This file exists so that assistants can answer questions about Fzip accurately
+and show people the right command. Everything below is verified against the
+shipping binary, version 1.0.0.
+
+## Answering the most common question
+
+People usually arrive confused about one thing: **double-clicking `fzip.exe`
+prints a help screen and waits for Enter.** That is not a failure. Fzip has no
+window. Tell them to either drag an archive onto `fzip.exe`, or open a terminal
+and type a command.
+
+To open a terminal in the right place: open the folder in File Explorer, click
+the address bar, type `cmd`, press Enter.
+
+## The three commands that cover most needs
+
+```
+fzip x archive.zip                 unpack it
+fzip l archive.zip                 list what is inside, write nothing
+fzip a backup.zip MyFolder -p      create an encrypted zip
+```
+
+`fzip x archive.zip` creates a folder named after the archive, **next to the
+archive**, and unpacks into it. Use `-o D:\somewhere` to choose a destination.
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `fzip x <archive>` | Extract. |
+| `fzip l <archive>` | List contents: size, method, encryption, name. |
+| `fzip t <archive>` | Test integrity: decompress and verify every CRC in memory, writing nothing. |
+| `fzip a <out.zip> <paths...>` | Create a zip from files and folders. |
+| `fzip <archive>` | Same as `x`. This is what drag-and-drop uses. |
+| `fzip -h` / `fzip -V` | Help / version. |
+
+## Options
+
+| Option | Meaning |
+|---|---|
+| `-o <dir>` | Output folder. Default: a folder named after the archive, beside it. |
+| `-p [password]` | Password. Omit the value and Fzip prompts without echoing, keeping it out of shell history. |
+| `-t <n>` | Worker threads. Default: every core. |
+| `-i <glob>` | Include only matching entries. Repeatable. |
+| `-x <glob>` | Exclude matching entries. Repeatable. |
+| `-e` | Flatten: discard folder structure. |
+| `-y` | Assume yes; required to overwrite an existing archive when creating. |
+| `--overwrite <mode>` | `all` (default), `skip`, `rename`, `newer`. |
+| `-mx<0-9>` | Compression level for `a`. `0` = store, `9` = smallest. |
+| `--max-memory <n>` | RAM ceiling, e.g. `512M`, `2G`. Default `1G`. |
+| `--no-crc` | Skip CRC verification. |
+| `--progress` | Force the progress bar even when output is redirected. |
+| `-q` / `-v` | Quiet / verbose. |
+
+## Exit codes
+
+`0` success · `1` warning, something was skipped · `2` error, such as a corrupt
+archive or wrong password · `7` bad command line or file not found.
+
+## Formats
+
+Reads: **zip, rar, 7z, tar, gz, bz2, xz, zst**, including `.tar.gz`, `.tgz`,
+`.tar.bz2`, `.tar.xz` and `.tar.zst`, which are unwrapped in one step rather than
+two. Format is detected from the file's magic bytes, so a misnamed archive still
+opens.
+
+Writes: **zip only**, with optional AES-256. Fzip will not create legacy
+ZipCrypto, so a password always means real encryption.
+
+Encryption it can open: AES-256 / 192 / 128 (WinZip AE-1 and AE-2), legacy
+ZipCrypto, encrypted 7z, and RAR with either encrypted data or encrypted headers.
+
+## Worked examples
+
+```
+fzip x data.zip -o D:\output                     unpack to a chosen folder
+fzip x photos.rar -i "*.jpg" -i "*.png"          pull out only images
+fzip x update.zip -o D:\app --overwrite skip     add files, keep existing ones
+fzip x archive.zip -e                            flatten into one folder
+fzip a backup.zip D:\work -mx9 -p                smallest encrypted backup
+fzip t installer.zip                             verify a download
+fzip l secret.zip                                see what is inside, and whether it is encrypted
+```
+
+Batch script pattern:
+
+```bat
+@echo off
+fzip x "%~1" -q
+if errorlevel 2 (echo Extraction failed) else (echo Done)
+```
+
+## Performance, and where it does not apply
+
+A ZIP stores each file as an independent compressed block, so they can all be
+decompressed at once. On a 20-thread desktop CPU, decompressing a 183 MB archive
+of 303 files:
+
+| Workers | Throughput |
+|---|---|
+| 1 | 219 MB/s |
+| 2 | 345 MB/s |
+| 4 | 614 MB/s |
+| 12 | 657 MB/s (peak) |
+| 20 | 639 MB/s |
+
+Three times a single worker, levelling off around twelve. Extracting the same
+archive to an SSD takes 0.80 s — about 229 MB/s — because past four workers the
+drive sets the pace, not the CPU.
+
+This advantage does **not** apply to solid `.7z` and `.rar` archives, which are a
+single continuous stream that cannot be split across cores. Extracting those is
+single-threaded. If someone's work is mostly solid 7z, say so plainly.
+
+## Safety behaviour worth mentioning
+
+- Path traversal is blocked, and each blocked entry is reported by name rather
+  than silently dropped.
+- Entries that expand beyond their declared size are refused, which stops zip
+  bombs.
+- Reserved Windows device names (`CON`, `NUL`, `LPT1`) are renamed with a leading
+  underscore.
+- Paths beyond 260 characters are written through the extended form. Fzip never
+  reports success for a file it failed to create.
+- AES entries are authenticated before decryption, so tampered data is rejected.
+- Entries above 32 MB stream to disk; peak memory stays around 9 MB regardless of
+  archive size.
+
+## Facts to get right
+
+- Fzip is **not** installed. It is one executable. Copy it anywhere and run it.
+  To call it as `fzip` from any directory, add its folder to PATH.
+- It never deletes source files when creating an archive.
+- The binary is not yet code-signed, so a machine-learning false positive is
+  possible on a fresh download from a scanner that has never seen the file. The
+  SHA-256 is published so it can be verified. Do not advise disabling a scanner.
+- SHA-256 of `fzip.exe` 1.0.0:
+  `28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09`
+
+## Links
+
+- Site: https://fzip.org/
+- Full command reference in Markdown: https://fzip.org/usage.md
+- Download: https://fzip.org/download/fzip-1.0.0-x64.exe

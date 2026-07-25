@@ -1,0 +1,53 @@
+[package]
+name = "fzip"
+version = "1.0.0"
+edition = "2021"
+authors = ["Tcoder LLC"]
+description = "Fzip - fast portable archive tool for Windows. Extracts zip/rar/7z/tar/gz/bz2/xz/zst, creates zip."
+license = "MIT"
+homepage = "https://tcoder.dev/fzip"
+repository = "https://github.com/tcoder-llc/fzip"
+readme = "README.md"
+keywords = ["zip", "rar", "7z", "archive", "extract"]
+categories = ["compression", "command-line-utilities"]
+
+[features]
+default = ["rar"]
+# RAR reading pulls in RARLAB's UnRAR C++ sources. Those sources are the whole
+# WinRAR utility, not just the extractor, so they drag in code fzip never calls:
+# system shutdown with privilege elevation, an administrator check, and registry
+# reads. Building without this feature drops all of it.
+rar = ["dep:unrar"]
+
+[dependencies]
+memmap2 = "0.9"
+rayon = "1.10"
+zune-inflate = "0.2"
+crc32fast = "1.4"
+filetime = "0.2"
+aes = "0.8"
+hmac = "0.12"
+sha1 = "0.10"
+pbkdf2 = "0.12"
+rpassword = "7"
+unrar = { version = "0.5.8", optional = true }
+libdeflater = "1.25.2"
+bzip2 = "0.6.1"
+xz2 = "0.1.7"
+zstd = "0.13.3"
+tar = "0.4.46"
+sevenz-rust2 = "0.21.3"
+globset = "0.4.19"
+flate2 = "1.1.9"
+walkdir = "2.5.0"
+getrandom = "0.4.3"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3
+
+[build-dependencies]
+winresource = "0.1.31"

@@ -1,0 +1,7 @@
+/target
+
+# Built binaries belong in GitHub Releases, not in the repository.
+# web/README.md explains how the download link is wired to a release asset.
+/fzip.exe
+/fzip-norar.exe
+/web/download/
