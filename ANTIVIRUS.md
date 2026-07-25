@@ -68,8 +68,8 @@ LookupPrivilegeValueW      present   absent
 removes all four privilege imports and 682 KB of unreachable C++:
 
 ```bash
-cargo build --release                        # 2,852,352 bytes, reads RAR
-cargo build --release --no-default-features  # 2,153,984 bytes, no RAR, no privilege imports
+cargo build --release                        # 2,865,664 bytes, reads RAR
+cargo build --release --no-default-features  # no RAR, none of those imports, 682 KB smaller
 ```
 
 A build without RAR says so honestly in `-V` and `-h`, and refuses a `.rar` file
@@ -114,10 +114,9 @@ Release 1.0.0:
 
 | Build | SHA256 | Size |
 |---|---|---|
-| Default (with RAR) | `02400B918E2C0F974ADE4E45839441FCD5B3B3CF48D05862ADA7EBC6169F8BEA` | 2,852,352 |
-| `--no-default-features` | `580B1819229FF52613C9978F3BDDFA253D03013A2166525C692409296EAFDC6E` | 2,153,984 |
+| Published release | `28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09` | 2,865,664 |
 
-> These hashes identify **these published binaries**. Rust builds are not
+> That hash identifies **the published binary**. Rust builds are not
 > bit-for-bit reproducible — the compiler embeds absolute paths and other
 > build-machine details — so compiling the source yourself yields a functionally
 > identical executable with a different hash. That is expected.

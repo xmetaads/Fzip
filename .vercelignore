@@ -1,0 +1,12 @@
+# Only web/ is served. Keeping the Rust project out of the upload makes each
+# deployment smaller and removes any chance of Vercel trying to build it.
+target/
+src/
+brand/
+*.exe
+*.ps1
+Cargo.toml
+Cargo.lock
+build.rs
+fzip.manifest
+.cargo/

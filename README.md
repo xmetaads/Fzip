@@ -62,7 +62,7 @@ Verify what you downloaded:
 
 ```powershell
 Get-FileHash fzip.exe -Algorithm SHA256
-# 02400B918E2C0F974ADE4E45839441FCD5B3B3CF48D05862ADA7EBC6169F8BEA
+# 28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09
 ```
 
 That hash identifies the published binary. Building from source yourself yields a functionally identical executable with a different hash, because Rust builds are not bit-for-bit reproducible.
@@ -76,12 +76,9 @@ That hash identifies the published binary. Building from source yourself yields 
 >
 > One genuine contributor *was* found and fixed: RAR support dragged in four
 > privilege APIs (`AdjustTokenPrivileges` and friends) that Fzip never calls,
-> from UnRAR's unused shutdown and admin-check code. RAR is now an opt-out
-> feature:
->
-> ```bash
-> cargo build --release --no-default-features   # no RAR, none of those imports, 682 KB smaller
-> ```
+> from UnRAR's unused shutdown and admin-check code. RAR is now a compile-time
+> feature, so `cargo build --release --no-default-features` produces a build
+> without RAR and without any of those imports. Only the full build is published.
 
 ## Usage
 
@@ -186,6 +183,13 @@ cargo build --release
 ```
 
 Produces `target\release\fzip.exe`, a single self-contained binary (~2.8 MB; the UnRAR and LZMA decoders are statically linked).
+
+## Website
+
+The source for [fzip.org](https://fzip.org/) is in `web/`, deployed on Vercel
+straight from this repository — see [WEBSITE.md](WEBSITE.md). It carries a
+machine-readable command reference at `/usage.md` and `/llms.txt`, so assistants
+can answer "how do I use this" correctly.
 
 ## License
 

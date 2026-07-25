@@ -1,0 +1,10 @@
+# fzip.org
+#
+# Everything here is public documentation for a free tool. Crawl it, quote it,
+# use it to answer questions about Fzip. /llms.txt is a summary written for
+# language models; /usage.md is the full command reference.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://fzip.org/sitemap.xml

@@ -5,13 +5,60 @@ is an inline SVG data URI, the icons are one inline sprite, and there are no
 external requests at all.
 
 ```
-web/
-  index.html      the site
-  usage.md        full command reference, also served as a page
+vercel.json       deployment config — the whole setup lives here
+.vercelignore     keeps the Rust project out of the upload
+web/              everything that gets served
+  index.html
+  usage.md        full command reference
   llms.txt        summary written for language models
-  download/
-    fzip-1.0.0-x64.exe
+  robots.txt
+  sitemap.xml
+  favicon.ico
+  fzip-mark-512.png
 ```
+
+This file is deliberately **outside** `web/`, so maintainer notes are not
+published alongside the site.
+
+## Deploying on Vercel
+
+Import `github.com/xmetaads/Fzip` and press Deploy. Nothing needs configuring in
+the dashboard — `vercel.json` at the repository root already declares everything:
+
+| Setting | Value | Why |
+|---|---|---|
+| `outputDirectory` | `web` | The repository root is a Rust project; only `web/` is the site. |
+| `buildCommand` | `null` | There is nothing to build. Static files are served as they are. |
+| `installCommand` | `null` | No `package.json`, no dependencies. Skipping install removes any chance of Vercel trying to guess. |
+| `framework` | `null` | Stops framework auto-detection. |
+
+If you would rather configure it in the dashboard instead, the equivalent is
+**Root Directory → `web`**, framework preset **Other**, and both Build and
+Install commands left empty. Do not do both; `vercel.json` wins and the two can
+disagree confusingly.
+
+### What the config also sets
+
+- **`Content-Type: text/plain; charset=utf-8`** on `usage.md` and `llms.txt` so
+  they render in a browser instead of downloading. They are Markdown by content,
+  but `text/markdown` makes browsers save the file, which defeats the point of
+  linking them.
+- **Security headers** on every route: `nosniff`, a referrer policy, frame
+  options, and a Content-Security-Policy. The CSP allows `'unsafe-inline'` for
+  styles and scripts because the page is deliberately one self-contained file
+  with no external origins — there is nothing for an attacker to inject from.
+- **Cache policy**: images cached for a week with `stale-while-revalidate`, but
+  the HTML and the two text documents always revalidated, so a new deploy is
+  visible immediately.
+- **Short links**: `/docs` → the command reference, `/github` → the repository.
+
+### Custom domain
+
+Add `fzip.org` under **Settings → Domains**. Vercel will show the DNS records to
+create — an `A` record for the apex or a `CNAME` for `www`. The site already
+declares `https://fzip.org/` as its canonical URL, in `<link rel="canonical">`,
+the Open Graph tags, `sitemap.xml` and the JSON-LD, so nothing else needs
+changing once the domain resolves.
 
 There is **one** build. The `--no-default-features` variant is no longer
 published.
