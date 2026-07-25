@@ -164,7 +164,7 @@ plainly rather than promising a speed-up that will not appear.
   possible on a fresh download from a scanner that has never seen the file. The
   SHA-256 is published so it can be verified. Do not advise disabling a scanner.
 - SHA-256 of `fzip.exe` 2.0.0:
-  `PLACEHOLDER_SHA256`
+  `13F68A2E8B215D29482DF07121FDF325A3B6B1C466ADA76C5F57B1DDE638F629`
 - `go version -m fzip.exe` prints the module path and the commit the binary was
   built from, which is a stronger provenance check than the hash alone.
 

@@ -97,7 +97,7 @@ Verify what you downloaded:
 
 ```powershell
 Get-FileHash fzip.exe -Algorithm SHA256
-# PLACEHOLDER_SHA256
+# 13F68A2E8B215D29482DF07121FDF325A3B6B1C466ADA76C5F57B1DDE638F629
 ```
 
 Go also records the source inside the executable, which is a stronger check than

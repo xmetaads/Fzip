@@ -294,8 +294,8 @@ Get-FileHash fzip.exe -Algorithm SHA256
 Version 2.0.0:
 
 ```
-SHA-256  PLACEHOLDER_SHA256
-Size     PLACEHOLDER_SIZE bytes
+SHA-256  13F68A2E8B215D29482DF07121FDF325A3B6B1C466ADA76C5F57B1DDE638F629
+Size     2,541,568 bytes
 ```
 
 That hash identifies the published binary. Compiling the source yourself may

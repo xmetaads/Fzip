@@ -82,9 +82,12 @@ existing submission ID.
 > - Source: <https://github.com/xmetaads/Fzip> (public, MIT licence)
 > - Version 1.x was written in Rust; version 2.0 is written in Go. Neither is
 >   packed or obfuscated.
-> - Carries a full version resource naming the homepage and source repository, an
->   application manifest (`asInvoker`), and is built with Control Flow Guard,
->   ASLR, DEP and high-entropy ASLR
+> - Carries a full version resource naming the homepage and source repository,
+>   and an application manifest (`asInvoker`). Built with ASLR, DEP and
+>   high-entropy ASLR. Control Flow Guard is absent in 2.0 because the Go
+>   toolchain does not emit it; 1.x had it.
+> - `go version -m fzip.exe` prints the exact source commit the binary was built
+>   from, which may be quicker for your analysts than reading the file cold.
 > - Currently unsigned, with near-zero prevalence
 >
 > **Why a model may find it borderline**
@@ -97,8 +100,8 @@ existing submission ID.
 > **What I am asking**
 >
 > 1. Please correct the verdict on the 1.0.1 hash above.
-> 2. The current release is 2.0.0, SHA-256 `PLACEHOLDER_SHA256`,
->    PLACEHOLDER_SIZE bytes. It is a complete rewrite — a different language, a
+> 2. The current release is 2.0.0, SHA-256 `13F68A2E8B215D29482DF07121FDF325A3B6B1C466ADA76C5F57B1DDE638F629`,
+>    2,541,568 bytes. It is a complete rewrite — a different language, a
 >    different dependency set (none), and a smaller feature surface — so it
 >    shares no code with the file that was flagged. Please add it to the allow
 >    list so this release does not repeat the cycle.
