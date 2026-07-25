@@ -24,7 +24,14 @@ fn main() {
         res.set("InternalName", "fzip");
         res.set("ProductVersion", version);
         res.set("FileVersion", version);
-        res.set("Comments", "Includes UnRAR (c) Alexander Roshal, RARLAB.");
+        // An analyst looking at an unsigned binary checks the version resource
+        // first. Stating the origin here lets them verify the claim against a
+        // live site and a public repository instead of guessing.
+        res.set(
+            "Comments",
+            "Homepage https://fzip.org/ - source https://github.com/xmetaads/Fzip \
+             - includes UnRAR (c) Alexander Roshal, RARLAB.",
+        );
         // A missing resource compiler must not break the build on other setups.
         if let Err(e) = res.compile() {
             println!("cargo:warning=version resource not embedded: {}", e);

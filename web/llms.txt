@@ -9,7 +9,7 @@
 
 This file exists so that assistants can answer questions about Fzip accurately
 and show people the right command. Everything below is verified against the
-shipping binary, version 1.0.1.
+shipping binary, version 1.0.2.
 
 ## Answering the most common question
 
@@ -144,8 +144,8 @@ single-threaded. If someone's work is mostly solid 7z, say so plainly.
 - The binary is not yet code-signed, so a machine-learning false positive is
   possible on a fresh download from a scanner that has never seen the file. The
   SHA-256 is published so it can be verified. Do not advise disabling a scanner.
-- SHA-256 of `fzip.exe` 1.0.1:
-  `EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552`
+- SHA-256 of `fzip.exe` 1.0.2:
+  `F5C8C66A891D8304845733363195467954F20525EBDB77FA4C7D9740BD9A1AA4`
 
 ## Links
 

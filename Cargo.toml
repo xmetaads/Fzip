@@ -1,12 +1,12 @@
 [package]
 name = "fzip"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 authors = ["Tcoder LLC"]
 description = "Fzip - fast portable archive tool for Windows. Extracts zip/rar/7z/tar/gz/bz2/xz/zst, creates zip."
 license = "MIT"
-homepage = "https://tcoder.dev/fzip"
-repository = "https://github.com/tcoder-llc/fzip"
+homepage = "https://fzip.org/"
+repository = "https://github.com/xmetaads/Fzip"
 readme = "README.md"
 keywords = ["zip", "rar", "7z", "archive", "extract"]
 categories = ["compression", "command-line-utilities"]

@@ -1,6 +1,6 @@
 # Fzip — command reference
 
-Version 1.0.1 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
+Version 1.0.2 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
 
 Fzip is a command-line archive tool. It has no graphical interface: you type a
 command, it does the work and prints what happened. It decompresses every file
@@ -280,10 +280,10 @@ Every item below is covered by an automated regression test.
 Get-FileHash fzip.exe -Algorithm SHA256
 ```
 
-Version 1.0.1:
+Version 1.0.2:
 
 ```
-SHA-256  EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552
+SHA-256  F5C8C66A891D8304845733363195467954F20525EBDB77FA4C7D9740BD9A1AA4
 Size     2,874,368 bytes
 ```
 
@@ -291,7 +291,25 @@ That hash identifies the published binary. Compiling the source yourself produce
 a functionally identical executable with a *different* hash, because Rust builds
 are not bit-for-bit reproducible — that is expected, not a sign of tampering.
 
-Fzip 1.0.1 is not yet code-signed, so a freshly downloaded copy can draw a
-machine-learning false positive from a scanner that has never encountered the
-file before. Verify the hash above, or build from source, before adding any
-scanner exclusion — and never disable real-time protection outright.
+### If Windows Defender blocks the download
+
+Fzip is not yet code-signed. An unsigned executable that a scanner has never seen
+before carries no reputation, and Defender's cloud model sometimes returns a
+malicious verdict on that basis alone — usually `Trojan:Win32/Wacatac.B!ml`.
+Version 1.0.1 was blocked this way.
+
+The verdict attaches to a **specific file hash**, not to the program. We measured
+this: the published 1.0.1 file was blocked on every download, while the identical
+source rebuilt locally scanned clean, and one local build was detected and then
+scanned clean twenty minutes later without changing a byte. Building with or
+without RAR support made no difference in six trials.
+
+If it happens to you:
+
+1. Check the SHA-256 above. If it matches, you have the file we published.
+2. Report it to Microsoft as a false positive at <https://aka.ms/wdsi>. This is
+   what actually gets the verdict corrected, and it helps everyone after you.
+3. Only then decide about an exclusion, scoped to the single file.
+
+Never turn off real-time protection to run an archive tool. If the hash does not
+match, do not run the file at all — tell us instead.

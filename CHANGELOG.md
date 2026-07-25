@@ -3,6 +3,51 @@
 All notable changes to **Fzip**, published by Tcoder LLC.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-07-25
+
+A rebuild that retires the 1.0.1 binary, whose SHA-256 picked up a false
+malicious verdict in Microsoft Defender's cloud. **No behaviour changed.** If
+1.0.1 runs for you, nothing here fixes a bug you have.
+
+### Why this release exists
+
+The 1.0.1 download was blocked as `Trojan:Win32/Wacatac.B!ml`, ThreatID
+2147735505. Measured on Security Intelligence 1.455.339.0, engine
+1.1.26060.3008, with cloud protection on Advanced and Block at First Sight
+enabled:
+
+| Test | Result |
+|---|---|
+| The published 1.0.1 file, downloaded twice, 20 minutes apart | blocked both times |
+| The same file before any Mark-of-the-Web was applied | blocked |
+| The same source rebuilt locally | clean |
+| A local build with Mark-of-the-Web applied | clean |
+| Three builds **with** RAR support, different hashes | clean, 3/3 |
+| Three builds **without** RAR support | clean, 3/3 |
+
+One local build was detected at 19:51 and scanned clean at 20:11 - same bytes,
+same machine, twenty minutes apart. The verdict therefore attaches to a
+**specific file hash**. It is not the code, not Mark-of-the-Web, and not the
+statically linked UnRAR sources that had been the leading suspect. Files built
+shortly after a detection were briefly condemned as well and then cleared,
+consistent with a cloud verdict spreading across similar hashes and expiring.
+
+Publishing a new build gives the download a hash with no verdict against it.
+That is a workaround, not a cure: every release starts at zero prevalence, and
+an unsigned executable can be condemned again. A code-signing certificate for
+Tcoder LLC is the only durable fix. The 1.0.1 hash has been submitted to
+Microsoft for correction.
+
+### Changed
+
+- `Cargo.toml` declared `tcoder.dev/fzip` as the homepage and `tcoder-llc/fzip`
+  as the repository. Neither exists. They are now `fzip.org` and
+  `github.com/xmetaads/Fzip`.
+- The version resource embedded in `fzip.exe` now names the homepage and the
+  source repository, so anyone inspecting an unsigned binary can check its
+  origin against something public instead of taking the publisher field on
+  trust.
+
 ## [1.0.1] — 2026-07-25
 
 Five defects reported from real deployments, all reproduced and fixed. Anyone

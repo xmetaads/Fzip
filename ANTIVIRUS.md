@@ -11,12 +11,15 @@ sounds plausible.
 | "It's because Fzip is written in Rust" | **Ruled out** | A minimal Rust `hello world` scans clean. So does a minimal Go one. The language is not the trigger. |
 | "One of the dependencies is dirty" | **Ruled out** | UnRAR, sevenz-rust2, the AES/HMAC/PBKDF2 stack, the bzip2/xz/zstd C codecs and the deflate codecs were each linked into a separate test binary. All clean. All of them linked together into one 928 KB binary: also clean. |
 | "The verdict is stable for a given source" | **False** | One Fzip build was quarantined; rebuilding the *same source* produced a binary that scans clean. The verdict attaches to a file hash, not to the code. |
-| "Fzip imports privileged APIs it never uses" | **Confirmed, and fixed** | See below. |
+| "Fzip imports privileged APIs it never uses" | **True, but not the trigger** | The imports are real and are described below. Six controlled builds on 2026-07-25 showed they make no difference to the verdict. |
+| "Mark-of-the-Web is what condemns the download" | **Ruled out** | The blocked 1.0.1 file was rejected before any zone stream was written to it. |
 
-## How the detection actually reached the user
+## How the detection first reached the user
 
-The Defender record shows the file was flagged on **download**, not on local
-execution:
+In the first round, the Defender record showed the file flagged on **download**
+rather than on local execution. (In the 1.0.1 recurrence documented below, local
+files were flagged too, so this is not a rule — but the reputation path described
+here is still the mechanism.)
 
 ```
 ThreatID 2147735505  =  Trojan:Win32/Wacatac.B!ml
@@ -32,7 +35,40 @@ probability estimate — not from a signature matching known malicious code.
 This path is *non-deterministic across builds*, which the testing confirmed:
 recompiling the identical source produced a binary the same engine accepted.
 
-## The one real defect found
+## The 1.0.1 recurrence, and the experiment that settled it
+
+Version 1.0.1 was blocked again on 2026-07-25. This time it reproduced on demand,
+which made a controlled comparison possible. Security Intelligence
+**1.455.339.0**, engine 1.1.26060.3008, cloud protection Advanced, Block at First
+Sight on.
+
+| Test | Result |
+|---|---|
+| Published 1.0.1 file, downloaded twice, 20 minutes apart | blocked both times |
+| Same file, before any Mark-of-the-Web stream was applied | blocked |
+| Same source rebuilt locally, different hash | clean |
+| Local build with a browser-equivalent Mark-of-the-Web applied | clean |
+| Three builds **with** RAR, three distinct hashes | clean, 3/3 |
+| Three builds **without** RAR, three distinct hashes | clean, 3/3 |
+
+Two entries from `Get-MpThreatDetection` finish the argument:
+
+- A local build was detected at 19:51:11 and **the same bytes on the same
+  machine** scanned clean at 20:11. Nothing about the file changed in between.
+- Right after the download was blocked at 19:50:02, two freshly compiled binaries
+  with unrelated hashes were also detected, at 19:50:18 and 19:51:11, and later
+  cleared. A verdict appears to propagate across similar files and then expire.
+
+So the verdict tracks **a specific file hash**. Not the language, not the
+dependencies, not Mark-of-the-Web, and not UnRAR — which is worth stating plainly
+because UnRAR had been the leading suspect in the previous round of this
+investigation, and that suspicion was wrong.
+
+The response is therefore to retire the condemned hash by publishing a rebuild
+(1.0.2) and to report the old hash to Microsoft. Neither is a cure. See "The
+remaining gap, stated plainly" below.
+
+## A real wart, though not the cause
 
 Fzip's RAR support compiles RARLAB's UnRAR C++ sources. Those sources are the
 **whole WinRAR utility**, not just the extractor. They contain
@@ -46,11 +82,15 @@ Windows imports into the executable:
 | `LookupPrivilegeValueW` | same | **No** |
 | `AllocateAndInitializeSid` | UnRAR `IsUserAdmin()` | **No** |
 
-Now consider what a classifier sees. Fzip walks a directory tree recursively,
-reads every file, encrypts each with AES-256, and writes the results — and the
-same binary imports the API sequence used to elevate privileges. That is the
+Consider what a classifier sees. Fzip walks a directory tree recursively, reads
+every file, encrypts each with AES-256, and writes the results — and the same
+binary imports the API sequence used to elevate privileges. That is the
 import-plus-behaviour fingerprint of ransomware. Fzip's intent is different, but
 intent is not in the binary.
+
+That reasoning is sound and the imports are genuinely unwanted, which is why the
+opt-out below exists. It is simply not what produced the detections: measured
+head to head, builds with and without those imports are equally clean.
 
 Verified by building both ways and comparing the import tables:
 

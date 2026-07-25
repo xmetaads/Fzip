@@ -1,95 +1,15 @@
 # Reply to Microsoft — false positive case
 
-Paste the section below into a reply on the WDSI case thread. Everything in it
-was verified on 2026-07-25 against Security Intelligence **1.455.339.0**.
+The detection **came back** on 2026-07-25 and is now reproducible on demand.
+That is what the previous reply lacked, so this time diagnostics can be
+collected. Everything below was measured against Security Intelligence
+**1.455.339.0**, engine **1.1.26060.3008**, cloud protection **Advanced**, Block
+at First Sight **on**.
 
----
+## Collect the diagnostics first
 
-## Draft reply
-
-> Thank you for looking at this.
->
-> I have completed step 1 of your instructions and can confirm the detection no
-> longer reproduces.
->
-> **Environment**
->
-> - Windows 11, Defender platform 4.18.26060.3008, engine 1.1.26060.3008
-> - Security Intelligence updated to **1.455.339.0** before retesting
-> - Cloud-delivered protection: Advanced (MAPSReporting = 2)
-> - Block at First Sight: enabled
->
-> **What was originally detected**
->
-> - `Trojan:Win32/Wacatac.B!ml`, ThreatID 2147735505
-> - The record shows it fired on the **download path**, not on execution:
->   `webfile:_...\fzip (1).exe|https://firebasestorage.googleapis.com/.../fzip.exe`
-> - A second build of the identical source was detected on a local scan and
->   quarantined; a third build of that same source scanned clean. The verdict
->   therefore attached to the file hash rather than to the code.
->
-> **Retest after updating**
->
-> I downloaded the current release over HTTPS, applied a Mark-of-the-Web
-> Zone.Identifier stream matching a real browser download, scanned it and ran it:
->
-> - `MpCmdRun.exe -Scan -ScanType 3` → *found no threats*
-> - The file executes normally
-> - No new entries in `Get-MpThreatDetection`
->
-> This matches your analysts' result, so I have no live reproduction to collect
-> `MPSupportFiles.cab` from. I will run `mpcmdrun.exe -GetFiles` and submit it
-> immediately if the detection returns.
->
-> **About the file**
->
-> - Product: Fzip 1.0.1, a command-line archive tool for Windows
-> - Publisher: Tcoder LLC — <https://fzip.org/>
-> - Source: <https://github.com/xmetaads/Fzip> (public, MIT licence)
-> - Download: <https://fzip.org/download/fzip.exe>
-> - SHA-256: `EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552`
-> - Size: 2,874,368 bytes
-> - Written in Rust; not packed, not obfuscated; section entropy 6.3
-> - Carries a full version resource, an application manifest (`asInvoker`), and
->   is built with Control Flow Guard, ASLR, DEP and high-entropy ASLR
->
-> **Why I believe a model finds it borderline**
->
-> The tool walks a directory tree, reads every file, optionally encrypts each
-> with AES-256 and writes the results — the behavioural shape of ransomware,
-> although the intent is ordinary archiving. It is also currently unsigned and
-> has near-zero prevalence, which I understand weighs heavily in the cloud
-> verdict.
->
-> One contributing factor I have already identified: RAR support statically links
-> RARLAB's UnRAR sources, which bring `AdjustTokenPrivileges`, `OpenProcessToken`,
-> `LookupPrivilegeValueW` and `AllocateAndInitializeSid` into the import table
-> from `Shutdown()` and `IsUserAdmin()` code paths that Fzip never calls. A build
-> configured without RAR has none of those imports. I can supply both builds for
-> comparison if that is useful to your analysts.
->
-> I would be grateful if the current binary could be added to your allow list so
-> that the next release does not start from zero reputation again.
-
----
-
-## Before sending
-
-Attach both binaries if you want the analysts to compare import tables:
-
-```powershell
-cargo build --release
-Copy-Item target\release\fzip.exe fzip-with-rar.exe
-cargo build --release --no-default-features
-Copy-Item target\release\fzip.exe fzip-no-rar.exe
-```
-
-## If the detection comes back
-
-Reproduce it first, then collect diagnostics **within the same session** — the
-logs are what Microsoft needs, and they roll over.
-
-Run from an **elevated** Command Prompt or PowerShell:
+Do this **while the detection still reproduces** — the logs roll over. Run from
+an **elevated** prompt:
 
 ```
 "C:\Program Files\Windows Defender\MpCmdRun.exe" -GetFiles
@@ -106,7 +26,103 @@ existing submission ID.
 
 > **Know what you are sending.** `MPSupportFiles.cab` contains Defender's full
 > operational history for the machine — every detection it has ever recorded,
-> file paths, and system configuration. On this machine that history includes
-> detections on unrelated downloads. That is fine to share with Microsoft, who
-> already hold that telemetry, but do not post the archive publicly or attach it
-> to a support ticket with any third party.
+> file paths, and system configuration. That is fine to share with Microsoft,
+> who already hold that telemetry, but do not post it publicly or attach it to a
+> ticket with any third party.
+
+---
+
+## Draft reply
+
+> The detection has returned, and unlike last time I can reproduce it on demand.
+> I have attached `MPSupportFiles.cab` collected during a live reproduction.
+>
+> **Detection**
+>
+> - `Trojan:Win32/Wacatac.B!ml`, ThreatID 2147735505
+> - Affected file: Fzip 1.0.1, SHA-256
+>   `EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552`,
+>   2,874,368 bytes
+> - Downloaded from <https://fzip.org/download/fzip.exe>, which redirects to the
+>   GitHub release asset
+>
+> **What I measured**
+>
+> I ran a controlled comparison to find out whether the verdict follows the code
+> or the file hash. Environment as above.
+>
+> | Test | Result |
+> |---|---|
+> | Published 1.0.1 file, downloaded twice, 20 minutes apart | blocked both times |
+> | Same file, before any Mark-of-the-Web stream was applied | blocked |
+> | Same source rebuilt locally, different hash | clean |
+> | Local build with a browser-equivalent Mark-of-the-Web applied | clean |
+> | Three builds **with** RAR support, three distinct hashes | clean, 3/3 |
+> | Three builds **without** RAR support, three distinct hashes | clean, 3/3 |
+>
+> Two further observations from `Get-MpThreatDetection`:
+>
+> - A local build was detected at 19:51:11 and the **same bytes on the same
+>   machine** scanned clean at 20:11. Nothing about the file changed.
+> - Immediately after the download was blocked at 19:50:02, two freshly compiled
+>   binaries with unrelated hashes were also detected (19:50:18, 19:51:11), then
+>   later cleared. This looks like a verdict propagating across similar files and
+>   then expiring.
+>
+> The conclusion I draw is that the verdict is attached to specific file hashes
+> rather than to anything in the code. Mark-of-the-Web is not the trigger — the
+> file was blocked before any zone stream existed. Statically linked UnRAR is not
+> the trigger either, which corrects the suspicion I raised in my previous
+> message: builds with and without it are equally clean.
+>
+> **About the file**
+>
+> - Product: Fzip, a command-line archive tool for Windows
+> - Publisher: Tcoder LLC — <https://fzip.org/>
+> - Source: <https://github.com/xmetaads/Fzip> (public, MIT licence)
+> - Written in Rust; not packed, not obfuscated; section entropy 6.3
+> - Carries a full version resource naming the homepage and source repository, an
+>   application manifest (`asInvoker`), and is built with Control Flow Guard,
+>   ASLR, DEP and high-entropy ASLR
+> - Currently unsigned, with near-zero prevalence
+>
+> **Why a model may find it borderline**
+>
+> The tool walks a directory tree, reads every file, optionally encrypts each
+> with AES-256 and writes the results. That is the behavioural shape of
+> ransomware even though the intent is ordinary archiving. Combined with no
+> signature and no prevalence, I can see why it scores badly.
+>
+> **What I am asking**
+>
+> 1. Please correct the verdict on the 1.0.1 hash above.
+> 2. I have published 1.0.2, SHA-256
+>    `F5C8C66A891D8304845733363195467954F20525EBDB77FA4C7D9740BD9A1AA4`,
+>    2,874,368 bytes, from the same source with only version metadata changed.
+>    Please add it to the allow list so this release does not repeat the cycle.
+> 3. If there is a way for a small publisher to establish reputation ahead of a
+>    release rather than after users are blocked, I would be glad to use it.
+>
+> I am arranging a code-signing certificate, which I understand is the real fix.
+
+---
+
+## Submit each release before announcing it
+
+The pattern is now clear enough to plan around: a new hash starts with no
+verdict, gets downloaded by a handful of people, and can be condemned once the
+cloud sees it. Waiting for a user to be blocked is the slow path.
+
+For every release from now on, submit the binary to <https://aka.ms/wdsi> as a
+**software developer** submission *before* the release is announced, and give it
+a few days. That is free and is the only lever available without a certificate.
+
+## The durable fix
+
+Code signing. An OV certificate for Tcoder LLC runs roughly US$200–400 a year
+and gives the publisher an identity that accumulates reputation across releases,
+so each new build inherits trust instead of starting from zero. An EV
+certificate costs more and grants SmartScreen reputation immediately.
+
+Without one, this will keep happening, and no change to the source will prevent
+it — that is what the measurements above demonstrate.

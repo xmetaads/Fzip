@@ -80,7 +80,9 @@ bandwidth at all.
 | Path | Goes to |
 |---|---|
 | `/download/fzip.exe` | the newest release, always |
-| `/download/fzip-1.0.0-x64.exe` | the `Fzip` tag specifically, so a pinned link never breaks |
+| `/download/fzip-1.0.2-x64.exe` | the `v1.0.2` tag specifically, so a pinned link never breaks |
+| `/download/fzip-1.0.1-x64.exe` | `/#download` — that build is withdrawn |
+| `/download/fzip-1.0.0-x64.exe` | `/#download` — that build no longer exists |
 | `/releases` | the releases page |
 | `/github` | the repository |
 
@@ -117,9 +119,17 @@ editing this one. Every version then keeps its own permanent URL, and
 ### Publishing a new version
 
 1. `cargo build --release`
-2. Draft a release on GitHub and attach `target/release/fzip.exe`. **The asset
-   must keep the exact name `fzip.exe`** — the `latest/download/fzip.exe` URL
-   resolves by filename, so renaming it breaks every existing link.
+2. Draft a **new** release on GitHub, tagged `vX.Y.Z`, and attach
+   `target/release/fzip.exe`. Do not edit an existing release — that is how 1.0.0
+   was lost. **The asset must keep the exact name `fzip.exe`**; the
+   `latest/download/fzip.exe` URL resolves by filename, so renaming it breaks
+   every existing link. Confirm GitHub marks the new release as **Latest**,
+   because that is what `latest/download/` follows.
+   Before announcing it, submit the binary to <https://aka.ms/wdsi> as a software
+   developer submission and give it a few days — see
+   [MICROSOFT-REPLY.md](MICROSOFT-REPLY.md). An unsigned release starts with no
+   reputation and can be blocked as a false positive, which is what happened to
+   1.0.1.
 3. Add a pinned redirect for the new tag in `vercel.json`, alongside the
    existing one, so old versioned links keep working.
 4. Update the SHA-256 and byte size in four places: `X-Fzip-*` in `vercel.json`,
