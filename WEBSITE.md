@@ -96,6 +96,24 @@ current version without downloading 2.8 MB:
    -SkipHttpErrorCheck).Headers | Where-Object Key -like "X-Fzip-*"
 ```
 
+### One tag per version
+
+Right now there is a single release, tagged `Fzip`, and 1.0.1 was published by
+replacing the asset inside it. That works — `latest/download/fzip.exe` resolves
+to it and the site is consistent — but it has two costs worth knowing:
+
+- **The previous binary is gone.** 1.0.0 cannot be downloaded from anywhere any
+  more, and the SHA-256 published for it no longer matches anything. Anyone who
+  recorded that hash for an audit is left with a dead reference.
+- **A pinned link silently changes meaning.**
+  `/download/fzip-1.0.0-x64.exe` used to point into that tag; it now redirects
+  to the download section instead, because pointing it at a tag that holds a
+  *different* build would be worse than a dead link.
+
+For the next release, tag it `v1.0.2` and publish a new release rather than
+editing this one. Every version then keeps its own permanent URL, and
+`latest/download/fzip.exe` still follows the newest automatically.
+
 ### Publishing a new version
 
 1. `cargo build --release`
