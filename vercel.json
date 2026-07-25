@@ -6,8 +6,29 @@
   "outputDirectory": "web",
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [
-    { "source": "/download/fzip.exe", "destination": "/download/fzip-1.0.0-x64.exe" }
+  "redirects": [
+    {
+      "source": "/download/fzip.exe",
+      "destination": "https://github.com/xmetaads/Fzip/releases/latest/download/fzip.exe",
+      "permanent": false
+    },
+    {
+      "source": "/download/fzip-1.0.0-x64.exe",
+      "destination": "https://github.com/xmetaads/Fzip/releases/download/Fzip/fzip.exe",
+      "permanent": false
+    },
+    { "source": "/download", "destination": "/#download", "permanent": false },
+    { "source": "/docs", "destination": "/usage.md", "permanent": false },
+    {
+      "source": "/releases",
+      "destination": "https://github.com/xmetaads/Fzip/releases",
+      "permanent": false
+    },
+    {
+      "source": "/github",
+      "destination": "https://github.com/xmetaads/Fzip",
+      "permanent": false
+    }
   ],
   "headers": [
     {
@@ -26,11 +47,10 @@
     {
       "source": "/download/(.*)",
       "headers": [
-        { "key": "Content-Type", "value": "application/octet-stream" },
-        { "key": "Content-Disposition", "value": "attachment; filename=\"fzip.exe\"" },
-        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" },
         { "key": "X-Fzip-Version", "value": "1.0.0" },
-        { "key": "X-Fzip-SHA256", "value": "28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09" }
+        { "key": "X-Fzip-SHA256", "value": "28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09" },
+        { "key": "X-Fzip-Size", "value": "2865664" },
+        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }
       ]
     },
     {
@@ -65,9 +85,5 @@
       "source": "/",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     }
-  ],
-  "redirects": [
-    { "source": "/docs", "destination": "/usage.md", "permanent": false },
-    { "source": "/download", "destination": "/#download", "permanent": false }
   ]
 }

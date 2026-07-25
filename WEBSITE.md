@@ -65,73 +65,68 @@ published.
 
 ## The download
 
-`https://fzip.org/download/fzip.exe` serves the binary straight from this
-deployment. That is the same shape every desktop app uses — Cursor, Claude and
-the rest all serve from their own domain, not from a code host.
+The public link is on our own domain, the way every desktop app does it:
 
-The real file is versioned: `web/download/fzip-1.0.0-x64.exe`. A rewrite in
-`vercel.json` maps the stable public path onto it:
-
-```json
-"rewrites": [
-  { "source": "/download/fzip.exe", "destination": "/download/fzip-1.0.0-x64.exe" }
-]
+```
+https://fzip.org/download/fzip.exe
 ```
 
-A **rewrite**, not a redirect — the browser's address bar stays on `fzip.org`
-and there is only ever one copy of the bytes. Both paths work, so anyone who
-pinned the versioned URL keeps a stable link forever.
+It is a **307 redirect** to the latest GitHub release asset. For a download that
+is invisible to the user — the browser follows it in the background and saves
+the file; the page they are on never navigates, so the address bar never leaves
+`fzip.org`. Meanwhile GitHub serves the bytes, so the download costs us no
+bandwidth at all.
 
-The response carries `Content-Disposition: attachment` so browsers download
-instead of trying to run it, plus two informational headers you can check
-without downloading the whole file:
+| Path | Goes to |
+|---|---|
+| `/download/fzip.exe` | the newest release, always |
+| `/download/fzip-1.0.0-x64.exe` | the `Fzip` tag specifically, so a pinned link never breaks |
+| `/releases` | the releases page |
+| `/github` | the repository |
+
+The redirect is deliberately `"permanent": false` — a 308 would be cached by
+browsers and would pin people to whichever release happened to be current the
+first time they visited.
+
+The redirect response also carries the build identity, so a script can check the
+current version without downloading 2.8 MB:
 
 ```powershell
-(Invoke-WebRequest https://fzip.org/download/fzip.exe -Method Head).Headers |
-  Where-Object Key -like "X-Fzip-*"
+(Invoke-WebRequest https://fzip.org/download/fzip.exe -MaximumRedirection 0 `
+   -SkipHttpErrorCheck).Headers | Where-Object Key -like "X-Fzip-*"
 ```
 
 ### Publishing a new version
 
 1. `cargo build --release`
-2. Copy it in with the new version in the name:
-   `copy target\release\fzip.exe web\download\fzip-1.0.1-x64.exe`
-3. Point the rewrite at the new filename in `vercel.json`
-4. Update the SHA-256 and byte size — `X-Fzip-SHA256` and `X-Fzip-Version` in
-   `vercel.json`, the `.hash` block and JSON-LD `fileSize` in `web/index.html`,
-   and the verification sections of `usage.md` and `llms.txt`
-5. Commit and push. Vercel deploys on push; the old versioned URL keeps working.
+2. Draft a release on GitHub and attach `target/release/fzip.exe`. **The asset
+   must keep the exact name `fzip.exe`** — the `latest/download/fzip.exe` URL
+   resolves by filename, so renaming it breaks every existing link.
+3. Add a pinned redirect for the new tag in `vercel.json`, alongside the
+   existing one, so old versioned links keep working.
+4. Update the SHA-256 and byte size in four places: `X-Fzip-*` in `vercel.json`,
+   the `.hash` block and JSON-LD `fileSize` in `web/index.html`, and the
+   verification sections of `usage.md` and `llms.txt`.
+5. Commit and push. Vercel deploys on push.
 
-Keep the previous versions in the folder unless you have a reason to remove
-them — each is about 2.8 MB, and a link that stops working is worse than a
-few megabytes.
+Verify what you published actually matches what the site claims:
 
-### Why not GitHub Releases
-
-Because **this repository is private**, and GitHub returns 404 for release
-assets on a private repository to anyone without access. A download link
-pointing there would fail for every customer while looking perfectly fine to
-you, because your browser is signed in.
-
-If you make the repository public, GitHub Releases becomes a reasonable and free
-alternative. The change would then be a redirect instead of a rewrite:
-
-```json
-"redirects": [
-  {
-    "source": "/download/fzip.exe",
-    "destination": "https://github.com/xmetaads/Fzip/releases/latest/download/fzip.exe",
-    "permanent": false
-  }
-]
+```powershell
+$tmp = "$env:TEMP\fzip-check.exe"
+Invoke-WebRequest https://fzip.org/download/fzip.exe -OutFile $tmp
+(Get-FileHash $tmp -Algorithm SHA256).Hash
 ```
 
-Keep it `"permanent": false`. A 308 would be cached by browsers and would pin
-people to whichever release was current the first time they visited.
+That should equal the hash on the download card. It is worth doing every
+release — uploading yesterday's build is an easy mistake, and the published hash
+is what people use to decide whether to trust the file.
 
-The trade-off either way: serving from Vercel uses your bandwidth — roughly
-35,000 downloads a month on the Hobby plan at 2.8 MB each — while GitHub serves
-it free but requires the repository to be public.
+### If you ever make the repository private again
+
+Release assets on a private repository return 404 to everyone without access —
+and it will still look fine to you, because your browser is signed in. Switch
+the redirect back to a rewrite serving `web/download/` from the deployment, and
+drop `/web/download/` out of `.gitignore`.
 
 ## Legacy: wiring the link to an external host
 

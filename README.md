@@ -56,6 +56,8 @@ Both gaps are in the decoder itself. 7-Zip's LZMA2 and RAR decoders are hand-tun
 
 ## Install
 
+Download: **<https://fzip.org/download/fzip.exe>**
+
 There is no installer. Download `fzip.exe` and run it. It needs no runtime, no DLLs, and no registry entries.
 
 Verify what you downloaded:
