@@ -81,6 +81,41 @@ declarations), and Control Flow Guard. Section entropy is 6.3 — normal compile
 code. Fzip is not packed or obfuscated, and never will be: packing is itself a
 strong malware signal, and hiding from scanners would be the wrong thing to do.
 
+## What Microsoft said
+
+The binary was submitted through <https://www.microsoft.com/en-us/wdsi/submission>.
+Their analysts replied:
+
+> Our scanners show no positive detection, and we have no telemetry indicators
+> for the file(s) submitted either.
+
+That is consistent with everything measured above: there is no signature
+matching this file. The verdict came from the cloud model at download time, and
+it is not reproducible from the file alone.
+
+They asked for the detection to be reproduced on the latest Security
+Intelligence and for `MPSupportFiles.cab` to be collected from the machine that
+reported it. Retested on **2026-07-25** with Security Intelligence
+**1.455.339.0**, engine 1.1.26060.3008, cloud protection on Advanced and Block
+at First Sight enabled:
+
+| Test | Result |
+|---|---|
+| Download the released binary over HTTPS | 2,865,664 bytes, hash matches |
+| Apply a Mark-of-the-Web stream, as a browser download does | — |
+| `MpCmdRun.exe -Scan -ScanType 3` | **found no threats** |
+| Execute it | runs normally, prints `Fzip 1.0.0` |
+| New entries in `Get-MpThreatDetection` | **none** |
+
+**The detection no longer reproduces**, so there is no diagnostic data to
+collect. [MICROSOFT-REPLY.md](MICROSOFT-REPLY.md) holds a drafted reply and the
+exact commands to run if it returns.
+
+The important thing this does *not* mean: the problem is not permanently solved.
+Each new release is a new file hash with zero reputation, so the same
+machine-learning path can reach the same conclusion again. Only a code signature
+breaks that cycle.
+
 ## The remaining gap, stated plainly
 
 None of the above reliably ends the warning, because the dominant factors are
