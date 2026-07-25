@@ -22,7 +22,7 @@ There are three ways to use it, easiest first:
 
 ## 2. The easy way: drag and drop
 
-Drag a `.zip`, `.rar`, `.7z` (or any supported archive) **onto the `fzip.exe` icon**.
+Drag a `.zip` **onto the `fzip.exe` icon**.
 
 The output folder is created **next to the archive**, named after it with the extension removed:
 
@@ -83,7 +83,7 @@ fzip x report.zip
 ```bash
 fzip x report.zip                    # into a "report" folder beside the archive
 fzip x report.zip -o D:\Results      # choose the destination
-fzip x report.rar                    # rar, 7z, tar.gz ... same command
+fzip x report.zip -e                 # flatten: ignore the folder structure
 fzip report.zip                      # shorthand, the "x" is optional
 ```
 
@@ -164,7 +164,7 @@ fzip x software.zip
 
 **Pull only the images out of a huge archive:**
 ```bash
-fzip x photos.rar -i "*.jpg" -i "*.png" -o D:\Images
+fzip x photos.zip -i "*.jpg" -i "*.png" -o D:\Images
 ```
 
 **Extract but leave the junk behind:**
@@ -216,13 +216,27 @@ These follow the 7-Zip convention, so existing scripts keep working.
 
 ## 9. Supported formats
 
-**Extracts:** `.zip` `.rar` `.7z` `.tar` `.gz` `.bz2` `.xz` `.zst`, plus combinations like `.tar.gz`, `.tgz`, `.tar.xz`.
+**Extracts:** `.zip`. **Creates:** `.zip`, optionally with AES-256.
 
-**Creates:** `.zip` only, optionally with AES-256.
+That is the entire list. Fzip 1.x also read `.rar`, `.7z`, `.tar`, `.gz`,
+`.bz2`, `.xz` and `.zst`; version 2.0 dropped all of them. If you hand Fzip one
+of those it tells you which format it is and stops:
 
-Formats are identified by the **magic bytes inside the file**, not by the extension, so a mislabelled archive still extracts correctly.
+```
+> fzip x archive.rar
+fzip: archive.rar is a RAR archive, and this version reads zip only
+```
 
-For `.tar.gz`, fzip notices the tar inside and **unpacks straight to the contents** (like `tar -xzf`) instead of making you do two passes as 7-Zip does.
+If you need those formats, keep a tool that has them — this is not a bug to
+report.
+
+Inside a zip, Fzip handles deflate and stored entries, ZIP64, archives with more
+than 65535 entries, and both UTF-8 and legacy CP437 entry names. BZip2, LZMA,
+Zstd, XZ and Deflate64 used as a method *inside* a zip are rare, and are reported
+clearly rather than mis-extracted.
+
+Formats are identified by the **magic bytes inside the file**, not by the
+extension, so a zip that someone named `.rar` still extracts correctly.
 
 ---
 
@@ -240,11 +254,14 @@ The password really is wrong. fzip verifies the password against an authenticati
 **It says `SKIPPED (unsafe)`.**
 The archive contains an entry that tried to write outside the destination folder (a zip-slip attack) or that is named after a Windows device. fzip blocks it and tells you exactly which entry.
 
-**7z files are slower than in 7-Zip.**
-Correct — about 1.3× slower. 7-Zip's LZMA2 decoder is hand-tuned assembly refined over many years, and a solid 7z archive is one continuous stream that cannot be split across cores. If your work is mostly `.7z`, use 7-Zip. fzip's advantage is `.zip`.
+**It will not open my `.rar` / `.7z` any more.**
+Correct, and deliberate. Version 2.0 reads zip only. Version 1.x read those formats; if you need them, keep a tool that does.
+
+**Windows' own `tar.exe` extracted my zip just as fast.**
+On some archives it will — they are within a couple of percent of each other. Fzip's clear margins are over 7-Zip and WinRAR (roughly 2.2× at extracting, 2.7× at creating), and on archives with many entries where the work spreads across cores. The numbers and the exact test archive are in the [README](README.md).
 
 **My zip is slightly bigger than 7-Zip's.**
-About 2.6% bigger at the same level, in exchange for roughly double the speed. Use `-mx9` if size matters most.
+Around 2% bigger at `-mx5`, in exchange for roughly 2.7× the speed. Use `-mx9` if size matters most.
 
 **Does it delete the originals after compressing?**
 Never. fzip only reads its input files.

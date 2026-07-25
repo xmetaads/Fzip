@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fzip — parallel command-line archive tool for Windows</title>
-<meta name="description" content="Fzip is a command-line archive tool for Windows that decompresses every file in an archive at once, one per CPU core: 657 MB/s decompressing, 229 MB/s end to end. One portable .exe, written in Rust. Reads zip, rar, 7z, tar, gz, bz2, xz, zst. Published by Tcoder LLC, MIT licence.">
+<meta name="description" content="Fzip is a command-line zip tool for Windows that decompresses every file in an archive at once, one per CPU core: 1,304 MB/s verifying, 245 MB/s extracting to disk. One portable .exe, written in Go with no third-party dependencies. Reads and writes zip, with AES-256. Published by Tcoder LLC, MIT licence.">
 <meta name="author" content="Tcoder LLC">
 <meta name="theme-color" content="#FAFBFD">
 <link rel="canonical" href="https://fzip.org/">
@@ -36,20 +36,20 @@
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "File archiver",
       "operatingSystem": "Windows 10, Windows 11 (64-bit)",
-      "softwareVersion": "1.0.2",
-      "fileSize": "2874368",
+      "softwareVersion": "2.0.0",
+      "fileSize": "2541568",
       "downloadUrl": "https://fzip.org/download/fzip.exe",
       "installUrl": "https://fzip.org/#download",
       "softwareHelp": "https://fzip.org/usage.md",
-      "programmingLanguage": "Rust",
+      "programmingLanguage": "Go",
       "license": "https://opensource.org/licenses/MIT",
       "author": { "@type": "Organization", "name": "Tcoder LLC", "url": "https://fzip.org/" },
       "publisher": { "@type": "Organization", "name": "Tcoder LLC" },
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-      "description": "A command-line archive tool for Windows with no graphical interface. It decompresses every entry in an archive concurrently, one per CPU core. Reads zip, rar, 7z, tar, gz, bz2, xz and zst; creates zip with optional AES-256 encryption. Ships as a single portable executable with no installer and no runtime dependencies.",
+      "description": "A command-line zip tool for Windows with no graphical interface. It decompresses every entry in an archive concurrently, one per CPU core. Reads and creates zip, with optional AES-256 encryption. Ships as a single portable executable with no installer and no runtime dependencies.",
       "featureList": [
         "Parallel decompression, one worker per CPU core",
-        "Reads zip, rar, 7z, tar, gz, bz2, xz, zst",
+        "Reads zip, including ZIP64 and archives over 65535 entries",
         "Creates zip archives with optional AES-256 encryption",
         "Format detected from magic bytes, not the file extension",
         "Streams entries above 32 MB so memory stays flat",
@@ -62,7 +62,7 @@
       "@type": "HowTo",
       "@id": "https://fzip.org/#extract",
       "name": "Extract an archive with Fzip",
-      "description": "Unpack a zip, rar, 7z, tar, gz, bz2, xz or zst archive from the Windows command line.",
+      "description": "Unpack a zip archive from the Windows command line.",
       "tool": { "@id": "https://fzip.org/#app" },
       "step": [
         { "@type": "HowToStep", "position": 1, "name": "Open a terminal in the folder", "text": "Open the folder in File Explorer, click the address bar, type cmd and press Enter." },
@@ -97,17 +97,17 @@
         {
           "@type": "Question",
           "name": "Which formats can Fzip read?",
-          "acceptedAnswer": { "@type": "Answer", "text": "zip, rar, 7z, tar, gz, bz2, xz and zst, including combinations such as .tar.gz and .tgz which are unwrapped in a single step. Fzip creates zip archives only." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Zip, and only zip — both reading and writing, including ZIP64 archives and archives with more than 65535 entries. Version 1.x also read rar, 7z, tar, gz, bz2, xz and zst; version 2.0 dropped them to do one format properly. Hand Fzip a RAR or 7z file and it will tell you which format it is rather than reporting a broken zip." }
         },
         {
           "@type": "Question",
           "name": "How do I handle a password-protected archive?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Add -p followed by the password, for example fzip x secret.zip -p MyPass123. If you leave the password off, Fzip prompts for it without echoing the characters. Fzip reads AES-256, AES-192, AES-128, legacy ZipCrypto, encrypted 7z, and RAR archives with encrypted data or encrypted headers." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Add -p followed by the password, for example fzip x secret.zip -p MyPass123. If you leave the password off, Fzip prompts for it without echoing the characters. Fzip reads WinZip AES-256, AES-192, AES-128 and legacy ZipCrypto. It only ever writes AES-256." }
         },
         {
           "@type": "Question",
           "name": "Does Fzip need to be installed?",
-          "acceptedAnswer": { "@type": "Answer", "text": "No. It is a single 2.8 MB executable with no installer, no runtime and no registry entries. Copy fzip.exe anywhere and run it. Add its folder to PATH to call it as fzip from any directory." }
+          "acceptedAnswer": { "@type": "Answer", "text": "No. It is a single 2.5 MB executable with no installer, no runtime and no registry entries. Copy fzip.exe anywhere and run it. Add its folder to PATH to call it as fzip from any directory." }
         }
       ]
     }
@@ -435,39 +435,39 @@ footer a{color:var(--brand)}
     <div class="hero-grid">
       <div class="reveal">
         <svg class="hero-mark" viewBox="0 0 64 64" role="img" aria-label="Fzip"><use href="#logo"/></svg>
-        <span class="pill">Version 1.0.2 &middot; Windows 10 &amp; 11 &middot; MIT licence</span>
-        <h1>Unzip at <span class="u">657&nbsp;MB/s</span></h1>
+        <span class="pill">Version 2.0.0 &middot; Windows 10 &amp; 11 &middot; MIT licence</span>
+        <h1>Unzip at <span class="u">1,304&nbsp;MB/s</span></h1>
         <p class="lede">
-          A command-line archive tool for Windows that decompresses every file in an
+          A command-line zip tool for Windows that decompresses every file in an
           archive at the same time, one per CPU core. No installer, no graphical
-          interface &mdash; a single 2.8&nbsp;MB executable you drive from
+          interface &mdash; a single 2.5&nbsp;MB executable you drive from
           <code>cmd</code> or PowerShell.
         </p>
         <div class="cta-row">
           <a class="btn" href="#download"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg> Download fzip.exe</a>
           <a class="btn ghost" href="#start"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-terminal"/></svg> First command</a>
         </div>
-        <p class="meta"><span>Windows 10 &amp; 11 &middot; 64-bit</span><span>Written in Rust</span><span>2.8&nbsp;MB</span></p>
+        <p class="meta"><span>Windows 10 &amp; 11 &middot; 64-bit</span><span>Written in Go</span><span>2.5&nbsp;MB</span></p>
       </div>
 
       <div class="card reveal" id="race">
         <div class="race-head">
-          <span>Decompressing <b>183.3 MB</b> &middot; 303 files</span>
-          <span>20-thread desktop CPU</span>
+          <span>Decompressing <b>171.7 MB</b> &middot; 360 files</span>
+          <span>20-thread laptop CPU</span>
         </div>
-        <div class="runner lead" data-secs="0.279" data-lanes="12">
+        <div class="runner lead" data-secs="0.149" data-lanes="12">
           <div class="runner-top">
             <span class="runner-name"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bolt"/></svg> 12 workers <em>&mdash; fzip</em></span>
-            <span class="runner-time">0.279s</span>
+            <span class="runner-time">0.149s</span>
           </div>
-          <div class="lanes" role="img" aria-label="Twelve workers all decompressing at once: 0.279 seconds"></div>
+          <div class="lanes" role="img" aria-label="Twelve workers all decompressing at once: 0.149 seconds"></div>
         </div>
-        <div class="runner" data-secs="0.836" data-lanes="1">
+        <div class="runner" data-secs="0.947" data-lanes="1">
           <div class="runner-top">
             <span class="runner-name"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clock"/></svg> 1 worker <em>&mdash; the conventional way</em></span>
-            <span class="runner-time">0.836s</span>
+            <span class="runner-time">0.947s</span>
           </div>
-          <div class="lanes" role="img" aria-label="One worker taking the same twelve units in sequence: 0.836 seconds"></div>
+          <div class="lanes" role="img" aria-label="One worker taking the same twelve units in sequence: 0.947 seconds"></div>
         </div>
         <div class="race-foot">
           <span>Same binary, same archive, only <code>-t</code> changed.</span>
@@ -493,8 +493,8 @@ footer a{color:var(--brand)}
           <h3 style="font-size:var(--step-0);margin-bottom:var(--s3)">1 &middot; Unpack an archive</h3>
           <pre><span class="p">&gt;</span> fzip x archive.zip</pre>
           <p style="margin-top:var(--s3);font-size:var(--step--1);color:var(--fg-mute)">
-            Creates a folder named after the archive, right next to it. Works the same
-            for <code>.rar</code>, <code>.7z</code>, <code>.tar.gz</code> and the rest.
+            Creates a folder named after the archive, right next to it &mdash; not in
+            whatever directory you happen to be standing in.
           </p>
         </div>
         <div class="reveal">
@@ -584,7 +584,7 @@ footer a{color:var(--brand)}
 fzip x data.zip <span class="a">-o D:\output</span>
 
 <span class="p">#</span> pull only the images out of a big archive
-fzip x photos.rar <span class="a">-i "*.jpg" -i "*.png"</span>
+fzip x photos.zip <span class="a">-i "*.jpg" -i "*.png"</span>
 
 <span class="p">#</span> unpack again without touching existing files
 fzip x update.zip <span class="a">-o D:\app --overwrite skip</span>
@@ -623,41 +623,59 @@ fzip x "%~1" -q
       <p class="lede reveal" style="margin-bottom:var(--s10)">
         A ZIP archive stores each file as an independent compressed block. That means
         they can all be decompressed at once, rather than queued behind one another.
-        Below is the same 183&nbsp;MB archive and the same binary, with only the worker
+        Below is the same 171.7&nbsp;MB archive and the same binary, with only the worker
         count changed.
       </p>
 
       <div class="card reveal">
         <h3 style="font-size:var(--step-0);margin-bottom:var(--s5)">Decompression throughput by worker count</h3>
         <div class="chart">
-          <div class="crow"><span>1 worker</span><span class="ctrack"><i style="--w:.333"></i></span><span class="cval">219 MB/s</span></div>
-          <div class="crow"><span>2 workers</span><span class="ctrack"><i style="--w:.525"></i></span><span class="cval">345 MB/s</span></div>
-          <div class="crow"><span>4 workers</span><span class="ctrack"><i style="--w:.934"></i></span><span class="cval">614 MB/s</span></div>
-          <div class="crow peak"><span>12 workers</span><span class="ctrack"><i style="--w:1"></i></span><span class="cval">657 MB/s</span></div>
-          <div class="crow"><span>20 workers</span><span class="ctrack"><i style="--w:.972"></i></span><span class="cval">639 MB/s</span></div>
+          <div class="crow"><span>1 worker</span><span class="ctrack"><i style="--w:.139"></i></span><span class="cval">181 MB/s</span></div>
+          <div class="crow"><span>2 workers</span><span class="ctrack"><i style="--w:.244"></i></span><span class="cval">318 MB/s</span></div>
+          <div class="crow"><span>4 workers</span><span class="ctrack"><i style="--w:.485"></i></span><span class="cval">633 MB/s</span></div>
+          <div class="crow"><span>8 workers</span><span class="ctrack"><i style="--w:.724"></i></span><span class="cval">944 MB/s</span></div>
+          <div class="crow"><span>12 workers</span><span class="ctrack"><i style="--w:.883"></i></span><span class="cval">1,151 MB/s</span></div>
+          <div class="crow peak"><span>20 workers</span><span class="ctrack"><i style="--w:1"></i></span><span class="cval">1,304 MB/s</span></div>
         </div>
         <p style="margin-top:var(--s5);font-size:var(--step--1);color:var(--fg-mute)">
-          Three times the throughput of a single worker, levelling off around twelve
-          because the archive only holds so much independent work. Measured with
-          <code>fzip t</code>, which decompresses and verifies without writing to disk.
+          Seven times the throughput of a single worker, still climbing at twenty
+          because the archive holds 360 independent entries. Measured with
+          <code>fzip t</code>, which decompresses and verifies without writing to disk;
+          five runs at each worker count, best taken.
         </p>
       </div>
 
       <div class="note reveal" style="margin-top:var(--s6);border-left-color:var(--brand)">
         <h3>What you actually see on disk</h3>
         <p>
-          Extracting the same archive to an SSD takes <b>0.80&nbsp;seconds</b> &mdash;
-          about 229&nbsp;MB/s end to end. Past four workers the drive, not the CPU, sets
-          the pace. Fzip is fastest where decompression is the bottleneck: many files,
-          fast storage, or <code>fzip t</code> where nothing is written at all.
+          Extracting the same archive to an SSD takes <b>0.70&nbsp;seconds</b> &mdash;
+          about 245&nbsp;MB/s end to end, against 119&nbsp;MB/s on one worker. Writing
+          is what sets the pace there, not decompression. Fzip is fastest where
+          decompression is the bottleneck: many files, fast storage, or
+          <code>fzip t</code> where nothing is written at all.
+        </p>
+      </div>
+
+      <div class="note reveal" style="margin-top:var(--s6)">
+        <h3>One number is never the whole story</h3>
+        <p>
+          Throughput depends on what is in the archive. The figures above come from
+          documents, which compress well. Re-run the same binary against an archive
+          that is two thirds incompressible binary and it verifies at
+          <b>362&nbsp;MB/s</b> instead &mdash; still 2.8&times; what 7&#8209;Zip manages
+          on the same file, but nowhere near 1,304. Both were measured; neither is
+          <em>the</em> number. On that harder archive, extraction to disk finishes in
+          0.85&nbsp;s, which is a dead heat with the <code>tar.exe</code> already built
+          into Windows 11. Reproduce all of it with <code>run_bench.ps1</code> in the
+          repository.
         </p>
       </div>
 
       <div class="bento reveal" style="margin-top:var(--s8)">
-        <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-box"/></svg></span><div class="v">8</div><div class="k">Formats read</div></div>
-        <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cpu"/></svg></span><div class="v">9 MB</div><div class="k">Peak RAM, any size</div></div>
+        <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-box"/></svg></span><div class="v">0</div><div class="k">Third-party dependencies</div></div>
+        <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cpu"/></svg></span><div class="v">7 MB</div><div class="k">Peak RAM, any size</div></div>
         <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span><div class="v">AES-256</div><div class="k">Zip encryption</div></div>
-        <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shield"/></svg></span><div class="v">2.8 MB</div><div class="k">One file, no installer</div></div>
+        <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shield"/></svg></span><div class="v">2.5 MB</div><div class="k">One file, no installer</div></div>
       </div>
     </div>
   </section>
@@ -669,8 +687,8 @@ fzip x "%~1" -q
     <div class="bento reveal">
       <div class="tile wide">
         <span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-box"/></svg></span>
-        <h3>Reads eight formats</h3>
-        <p><code>zip</code> <code>rar</code> <code>7z</code> <code>tar</code> <code>gz</code> <code>bz2</code> <code>xz</code> <code>zst</code> &mdash; plus combinations like <code>.tar.gz</code> and <code>.tgz</code>, unwrapped in a single step instead of two.</p>
+        <h3>Zip, done properly</h3>
+        <p>Deflate and stored entries, ZIP64, archives past 65535 entries, UTF-8 and legacy CP437 names, WinZip <code>AES-256/192/128</code> and legacy ZipCrypto. Version 1.x also read rar and 7z; 2.0 dropped them to do one format well.</p>
       </div>
       <div class="tile wide">
         <span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span>
@@ -680,12 +698,12 @@ fzip x "%~1" -q
       <div class="tile wide">
         <span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scan"/></svg></span>
         <h3>Ignores the extension</h3>
-        <p>Format is read from the magic bytes at the start of the file, so an archive with the wrong name still opens correctly.</p>
+        <p>Format is read from the magic bytes at the start of the file, so a zip named <code>.rar</code> still opens &mdash; and a genuine RAR gets told apart by name, not a puzzling parse error.</p>
       </div>
       <div class="tile wide">
         <span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cpu"/></svg></span>
         <h3>Memory stays flat</h3>
-        <p>Entries above 32&nbsp;MB stream straight to disk. A 200&nbsp;MB file peaks at 9&nbsp;MB of RAM; a 50&nbsp;GB one does the same.</p>
+        <p>Entries above 32&nbsp;MB stream straight to disk. A 200&nbsp;MB file peaks at 7&nbsp;MB of RAM; a 50&nbsp;GB one does the same.</p>
       </div>
     </div>
   </section>
@@ -696,15 +714,16 @@ fzip x "%~1" -q
       <p class="eyebrow reveal">Safety</p>
       <h2 class="h reveal">An archiver opens files it did not create</h2>
       <p class="lede reveal" style="margin-bottom:var(--s10)">
-        Two audits were run against Fzip: one behavioural, one line-by-line against the
-        PKWARE specification. Thirteen real defects were found and fixed, including two
-        that could kill the process from a 98-byte file. Each has a regression test.
+        Fzip 2.0 is a rewrite, but not a fresh start on safety: every defect the 1.x
+        audits turned up &mdash; thirteen from two audits, five more from the field &mdash;
+        came across as a regression test first and a fix second. 66 integration tests and
+        18 unit tests run against every build.
       </p>
       <div style="display:grid;gap:var(--s4);grid-template-columns:repeat(auto-fit,minmax(20rem,1fr))">
         <div class="card reveal">
           <ul class="checks">
             <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Path traversal blocked.</b> Entries with <code>..</code>, drive letters or absolute roots cannot write outside the destination, and each one is reported by name.</span></li>
-            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Zip bombs refused.</b> A 451-byte archive that expands to 400&nbsp;MB is stopped at its declared size instead of eating half a gigabyte.</span></li>
+            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Zip bombs refused.</b> A 199&nbsp;KB archive claiming 1&nbsp;KB but holding 200&nbsp;MB is stopped one byte past what it declared, not after filling the disk.</span></li>
             <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Device names renamed.</b> An entry called <code>CON</code> or <code>NUL</code> becomes <code>_CON</code> &mdash; files named after a device are nearly impossible to delete.</span></li>
             <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Long paths work.</b> Past 260 characters Fzip writes through the extended form, and never reports success for a file it failed to create.</span></li>
           </ul>
@@ -712,8 +731,9 @@ fzip x "%~1" -q
         <div class="card reveal">
           <ul class="checks">
             <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Encrypt-then-MAC.</b> AES entries are authenticated <em>before</em> decryption, so tampered data is rejected instead of decoding into garbage.</span></li>
-            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>CRC on every entry</b> by default, using SIMD so it costs almost nothing.</span></li>
-            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Hardened binary.</b> ASLR, DEP, high-entropy address space and Control Flow Guard, with a full application manifest. Never packed or obfuscated.</span></li>
+            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>CRC on every entry</b> by default, hardware-accelerated so it costs almost nothing.</span></li>
+            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>No third-party code.</b> Every byte is either Fzip's own source or the Go standard library &mdash; nothing to audit downstream, nothing to be compromised upstream. Never packed or obfuscated.</span></li>
+            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>ASLR, DEP and high-entropy address space</b>, with a full application manifest. Control Flow Guard is <em>not</em> present: the Go toolchain does not emit it.</span></li>
             <li><svg class="ico ico-warn" viewBox="0 0 24 24" role="img" aria-label="Open gap"><use href="#i-alert"/></svg><span><b>Not yet code-signed.</b> The honest gap. An unsigned binary with no download history can draw a machine-learning false positive; the cause is documented rather than hidden.</span></li>
           </ul>
         </div>
@@ -732,15 +752,15 @@ fzip x "%~1" -q
     <div class="card reveal">
       <div class="dlcard">
         <div style="display:grid;gap:var(--s3)">
-          <h3 style="font-size:var(--step-1)">fzip.exe &middot; version 1.0.2</h3>
+          <h3 style="font-size:var(--step-1)">fzip.exe &middot; version 2.0.0</h3>
           <p style="font-size:var(--step--1);color:var(--fg-mute)">
-            Windows 10 and 11, 64-bit. 2,874,368 bytes. Reads all eight formats,
-            creates encrypted zip.
+            Windows 10 and 11, 64-bit. 2,541,568 bytes. Reads and creates zip,
+            with AES-256.
           </p>
           <div class="hash"><b>SHA-256</b>F5C8C66A891D8304845733363195467954F20525EBDB77FA4C7D9740BD9A1AA4</div>
         </div>
         <a class="btn" href="/download/fzip.exe" download style="white-space:nowrap">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg> Download &middot; 2.8 MB
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg> Download &middot; 2.5 MB
         </a>
       </div>
     </div>
@@ -749,11 +769,15 @@ fzip x "%~1" -q
       <h3>Check it before you run it</h3>
       <pre style="margin-top:var(--s3)"><span class="p">PS&gt;</span> Get-FileHash fzip.exe -Algorithm SHA256</pre>
       <p style="margin-top:var(--s4)">
-        That hash identifies this published binary. Compiling the source yourself gives a
-        functionally identical executable with a different hash, because Rust builds are
-        not bit-for-bit reproducible &mdash; expected, not tampering. Building it yourself
-        is the strongest check available without a code signature, and every dependency
-        is pinned in <code>Cargo.lock</code>.
+        That hash identifies this published binary. Building it yourself is the strongest
+        check available without a code signature, and there is very little to check:
+        Fzip has <b>no third-party dependencies at all</b>, so the only code involved is
+        this repository and the Go standard library.
+      </p>
+      <pre style="margin-top:var(--s4)"><span class="p">PS&gt;</span> go version -m fzip.exe</pre>
+      <p style="margin-top:var(--s4)">
+        Go records the module path and the exact commit inside the executable, so that
+        command tells you which source produced the file in your hands.
       </p>
     </div>
   </section>
@@ -764,10 +788,11 @@ fzip x "%~1" -q
     <h2 class="h reveal">What Fzip will not do</h2>
     <p class="lede reveal" style="margin-bottom:var(--s6)">Said up front, so nothing surprises you later.</p>
     <ul class="checks reveal" style="max-width:64ch">
-      <li><svg class="ico ico-none" viewBox="0 0 24 24" role="img" aria-label="Not supported"><use href="#i-minus"/></svg><span><b>Creates zip only.</b> No 7z, tar or RAR authoring. RAR compression is proprietary and cannot legally be reimplemented.</span></li>
-      <li><svg class="ico ico-none" viewBox="0 0 24 24" role="img" aria-label="Not supported"><use href="#i-minus"/></svg><span><b>Solid archives cannot be parallelised.</b> A solid <code>.7z</code> or <code>.rar</code> is one continuous stream, so extracting those is single-threaded and slower than zip.</span></li>
+      <li><svg class="ico ico-none" viewBox="0 0 24 24" role="img" aria-label="Not supported"><use href="#i-minus"/></svg><span><b>Zip only.</b> Version 1.x also read rar, 7z, tar, gz, bz2, xz and zst. Those are gone. If you need them, keep a tool that has them &mdash; Fzip will at least tell you which format you handed it.</span></li>
+      <li><svg class="ico ico-none" viewBox="0 0 24 24" role="img" aria-label="Not supported"><use href="#i-minus"/></svg><span><b>Windows only.</b> The console handling and path rules are written directly against the Win32 API; there is no portable build.</span></li>
       <li><svg class="ico ico-none" viewBox="0 0 24 24" role="img" aria-label="Not supported"><use href="#i-minus"/></svg><span><b>No graphical interface</b>, no shell integration, no self-extracting archives. It is a command-line tool, by design.</span></li>
-      <li><svg class="ico ico-none" viewBox="0 0 24 24" role="img" aria-label="Not supported"><use href="#i-minus"/></svg><span><b>Two zip methods unsupported:</b> LZMA-in-zip and Deflate64 are reported clearly rather than mis-extracted.</span></li>
+      <li><svg class="ico ico-none" viewBox="0 0 24 24" role="img" aria-label="Not supported"><use href="#i-minus"/></svg><span><b>Uncommon zip methods unsupported:</b> BZip2, LZMA, Zstd, XZ and Deflate64 inside a zip are reported clearly rather than mis-extracted. Deflate and stored cover essentially everything in the wild.</span></li>
+      <li><svg class="ico ico-none" viewBox="0 0 24 24" role="img" aria-label="Not supported"><use href="#i-minus"/></svg><span><b>Encrypted entries are buffered, not streamed.</b> The authentication code covers the whole entry, so it has to be held in memory to be verified before decryption. <code>--max-memory</code> sets the ceiling.</span></li>
     </ul>
   </section>
 
@@ -775,7 +800,7 @@ fzip x "%~1" -q
 
 <footer>
   <div class="wrap">
-    <span class="mono">Fzip 1.0.2 &middot; written in Rust</span>
+    <span class="mono">Fzip 2.0.0 &middot; written in Go</span>
     <span>Published by <span class="mono">Tcoder LLC</span> &middot; MIT licence</span>
     <span><a href="/usage.md">Command reference</a> &middot; <a href="/llms.txt">llms.txt</a></span>
     <span style="margin-left:auto" class="mono">fzip.org</span>

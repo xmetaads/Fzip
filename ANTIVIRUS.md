@@ -4,6 +4,20 @@ Users report `Trojan:Win32/Wacatac.B!ml` and `Trojan:Win32/Wacapew.C!ml` from
 Microsoft Defender. This document reports what was actually tested, not what
 sounds plausible.
 
+> **Scope.** The experiments below were run against Fzip **1.x**, which was
+> written in Rust and statically linked UnRAR. They are kept because their
+> conclusion is about the detection mechanism rather than about that particular
+> binary, and it still holds: the verdict follows a **file hash**, driven by the
+> absence of a code signature and near-zero download history.
+>
+> **Fzip 2.0 is written in Go, and that did not change the situation** — which
+> is exactly what the language experiment below predicted. A minimal Rust
+> program and a minimal Go program both scanned clean, so the language was never
+> the variable. Rewriting in Go was done for other reasons; anyone hoping it
+> would settle the antivirus question should read the table below first.
+>
+> A code-signing certificate for Tcoder LLC remains the only durable fix.
+
 ## Summary of findings
 
 | Hypothesis | Verdict | Evidence |

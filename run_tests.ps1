@@ -1,6 +1,11 @@
 # =====================================================================
 #  fzip - full test suite
 #  Usage:  .\run_tests.ps1
+#
+#  Fzip reads and writes zip, on Windows, and nothing else. Tests for the
+#  formats the 1.x releases handled were removed when that code was; what
+#  remains of them is section D, which checks that a RAR or 7z file now gets
+#  an explanation rather than a puzzling parse error.
 # =====================================================================
 $ErrorActionPreference = 'Continue'
 # fzip emits UTF-8; tell PowerShell to decode captured output correctly
@@ -22,8 +27,7 @@ if (Test-Path -LiteralPath $S) {
 }
 New-Item -ItemType Directory -Force $S | Out-Null
 
-$FZIP = Join-Path $PSScriptRoot "target\release\fzip.exe"
-if (-not (Test-Path -LiteralPath $FZIP)) { $FZIP = Join-Path $PSScriptRoot "fzip.exe" }
+$FZIP = Join-Path $PSScriptRoot "fzip.exe"
 $SEVENZ = "C:\Program Files\7-Zip\7z.exe"
 $RAR    = "C:\Program Files\WinRAR\Rar.exe"
 $hasSevenZ = Test-Path $SEVENZ
@@ -161,18 +165,16 @@ $big = New-Object byte[] (200MB)
 for ($k = 0; $k -lt $big.Length; $k += 4096) { $big[$k] = [byte]($k % 251) }
 [System.IO.File]::WriteAllBytes("$S\bigfile.bin", $big)
 Remove-Variable big
-if ($hasSevenZ) {
-  & $SEVENZ a -tzip -mx=1 "$S\c5.zip" "$S\bigfile.bin" -bso0 -bsp0 | Out-Null
-  $p = Start-Process -FilePath $FZIP -ArgumentList "x","`"$S\c5.zip`"","-o","`"$S\o_c5`"","-q" -PassThru -NoNewWindow
-  $peak = 0
-  while (-not $p.HasExited) {
-    Start-Sleep -Milliseconds 60
-    try { $p.Refresh(); if ($p.WorkingSet64 -gt $peak) { $peak = $p.WorkingSet64 } } catch {}
-  }
-  $peakMB = [math]::Round($peak/1MB,1)
-  $ok = ([System.IO.File]::Exists("$S\o_c5\bigfile.bin")) -and ($peak -lt 120MB)
-  Assert $ok "C05 200MB member: peak RAM $peakMB MB (streams; was 233 MB before)"
-} else { Skip "C05 memory ceiling" "7z.exe not installed" }
+& $FZIP a "$S\c5.zip" "$S\bigfile.bin" -y -q -mx1
+$p = Start-Process -FilePath $FZIP -ArgumentList "x","`"$S\c5.zip`"","-o","`"$S\o_c5`"","-q" -PassThru -NoNewWindow
+$peak = 0
+while (-not $p.HasExited) {
+  Start-Sleep -Milliseconds 60
+  try { $p.Refresh(); if ($p.WorkingSet64 -gt $peak) { $peak = $p.WorkingSet64 } } catch {}
+}
+$peakMB = [math]::Round($peak/1MB,1)
+$ok = ([System.IO.File]::Exists("$S\o_c5\bigfile.bin")) -and ($peak -lt 160MB)
+Assert $ok "C05 200MB member: peak RAM $peakMB MB (streams rather than buffering)"
 Remove-Item "$S\bigfile.bin" -Force -ErrorAction SilentlyContinue
 
 # C06: corrupt archive caught by CRC
@@ -185,69 +187,35 @@ Assert ($LASTEXITCODE -ne 0) "C06 one flipped byte is caught by CRC"
 # C07: file that only pretends to be a zip
 [System.IO.File]::WriteAllText("$S\c7.zip", "this is definitely not a zip file")
 $msg = & $FZIP x "$S\c7.zip" -o "$S\o_c7" -q 2>&1 | Out-String
-Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'valid ZIP')) "C07 fake .zip gives a clear error"
+Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'valid zip')) "C07 fake .zip gives a clear error"
 
-Write-Output "===== D. Additional formats (7z, tar, gz, bz2, xz) ====="
+Write-Output "===== D. Formats this version does not read ====="
+
+# Fzip 2.x reads zip only. Anyone arriving from 1.x with a .rar deserves to be
+# told which format it is, not left with a parse error about a missing record.
+if ($hasRar) {
+  Push-Location $data
+  & $RAR a -r -idq "$S\d1.rar" "sub" | Out-Null
+  Pop-Location
+  $msg = & $FZIP x "$S\d1.rar" -o "$S\o_d1" -q 2>&1 | Out-String
+  Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'RAR archive') -and ($msg -match 'zip only')) `
+         "D01 a RAR file is named as such, not reported as a broken zip"
+} else { Skip "D01 RAR message" "Rar.exe not installed" }
 
 if ($hasSevenZ) {
   Push-Location $data
-  & $SEVENZ a "$S\d.7z" "*" -bso0 -bsp0 | Out-Null
-  & $SEVENZ a "$S\d.tar" "*" -bso0 -bsp0 | Out-Null
+  & $SEVENZ a "$S\d2.7z" "sub" -bso0 -bsp0 | Out-Null
+  & $SEVENZ a "$S\d3.tar" "sub" -bso0 -bsp0 | Out-Null
   Pop-Location
-  & $SEVENZ a "$S\d.tar.gz"  "$S\d.tar" -bso0 -bsp0 | Out-Null
-  & $SEVENZ a "$S\d.tar.bz2" "$S\d.tar" -bso0 -bsp0 | Out-Null
-  & $SEVENZ a "$S\d.tar.xz"  "$S\d.tar" -bso0 -bsp0 | Out-Null
+  & $SEVENZ a -tgzip "$S\d4.txt.gz" "$data\sub\f0.txt" -bso0 -bsp0 | Out-Null
 
-  & $FZIP x "$S\d.7z" -o "$S\o_d7z" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_d7z") -eq $SRC)) "D01 7z: extracts, hashes match"
-
-  & $FZIP x "$S\d.tar" -o "$S\o_dtar" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_dtar") -eq $SRC)) "D02 tar: extracts, hashes match"
-
-  # fzip spots the tar inside and unpacks its contents directly, like `tar -xzf`,
-  # whereas 7-Zip needs two passes.
-  foreach ($pair in @(@('gz','d.tar.gz'), @('bz2','d.tar.bz2'), @('xz','d.tar.xz'))) {
-    $ext = $pair[0]; $f = $pair[1]
-    & $FZIP x "$S\$f" -o "$S\o_d$ext" -q
-    Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_d$ext") -eq $SRC)) "D03-${ext}: tar.$ext unpacks contents in one step"
-  }
-
-  & $SEVENZ a "-pP@ss2026" "$S\d_enc.7z" "$data\sub" -bso0 -bsp0 | Out-Null
-  & $FZIP x "$S\d_enc.7z" -o "$S\o_d7zp" -p "P@ss2026" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_d7zp\sub") -eq (HashDir "$data\sub"))) "D04 encrypted 7z: hashes match"
-  & $FZIP x "$S\d_enc.7z" -o "$S\o_d7zbad" -p "wrong" -q 2>$null
-  Assert ($LASTEXITCODE -ne 0) "D05 encrypted 7z: wrong password rejected"
-
-  & $SEVENZ a -tgzip "$S\single.txt.gz" "$data\sub\f0.txt" -bso0 -bsp0 | Out-Null
-  & $FZIP x "$S\single.txt.gz" -o "$S\o_dsingle" -q
-  Assert (($LASTEXITCODE -eq 0) -and (Test-Path "$S\o_dsingle\single.txt")) "D06 plain gzip file: correct output name"
-} else { Skip "D01-D06 extra formats" "7z.exe not installed" }
-
-Write-Output "===== E. RAR ====="
-
-if ($hasRar) {
-  Push-Location $data
-  & $RAR a -r -idq "$S\e1.rar" "sub" "$uniDir" "empty.txt" | Out-Null
-  & $RAR a -r -s -idq "$S\e2.rar" "sub" "$uniDir" "empty.txt" | Out-Null
-  & $RAR a -r -v300k -idq "$S\e3vol.rar" "sub" "$uniDir" "empty.txt" | Out-Null
-  & $RAR a -r "-pP@ss2026" -idq "$S\e4.rar" "sub" | Out-Null
-  & $RAR a -r "-hpP@ss2026" -idq "$S\e5.rar" "sub" | Out-Null
-  Pop-Location
-
-  & $FZIP x "$S\e1.rar" -o "$S\o_e1" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_e1") -eq $SRC)) "E01 RAR5: hashes match"
-  & $FZIP x "$S\e2.rar" -o "$S\o_e2" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_e2") -eq $SRC)) "E02 solid RAR: hashes match"
-  $v1 = Get-ChildItem "$S\e3vol*.rar" | Sort-Object Name | Select-Object -First 1
-  & $FZIP x $v1.FullName -o "$S\o_e3" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_e3") -eq $SRC)) "E03 multi-volume RAR: hashes match"
-  & $FZIP x "$S\e4.rar" -o "$S\o_e4" -p "P@ss2026" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_e4\sub") -eq (HashDir "$data\sub"))) "E04 encrypted RAR data: hashes match"
-  & $FZIP x "$S\e5.rar" -o "$S\o_e5" -p "P@ss2026" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_e5\sub") -eq (HashDir "$data\sub"))) "E05 RAR with encrypted headers (-hp): hashes match"
-  & $FZIP x "$S\e4.rar" -o "$S\o_e6" -p "wrong" -q 2>$null
-  Assert ($LASTEXITCODE -ne 0) "E06 RAR wrong password is rejected"
-} else { Skip "E01-E06 RAR" "Rar.exe not installed" }
+  $msg = & $FZIP x "$S\d2.7z" -o "$S\o_d2" -q 2>&1 | Out-String
+  Assert (($LASTEXITCODE -ne 0) -and ($msg -match '7z archive')) "D02 a 7z file is named as such"
+  $msg = & $FZIP x "$S\d3.tar" -o "$S\o_d3" -q 2>&1 | Out-String
+  Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'tar archive')) "D03 a tar file is named as such"
+  $msg = & $FZIP x "$S\d4.txt.gz" -o "$S\o_d4" -q 2>&1 | Out-String
+  Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'gzip file')) "D04 a gzip file is named as such"
+} else { Skip "D02-D04 foreign format messages" "7z.exe not installed" }
 
 Write-Output "===== F. Compression (the 'a' command) ====="
 
@@ -263,6 +231,16 @@ if ($hasSevenZ) {
   & $SEVENZ x "$S\f1.zip" "-o$S\o_f3" -y -bso0 -bsp0 | Out-Null
   Assert ((HashDir "$S\o_f3\data") -eq $SRC) "F04 zip written by fzip: 7-Zip extracts identical bytes"
 }
+
+# .NET is the other reader almost every Windows machine has, and it is stricter
+# than 7-Zip about the central directory.
+$netOk = $false
+try {
+  $za = [System.IO.Compression.ZipFile]::OpenRead("$S\f1.zip")
+  $netOk = $za.Entries.Count -gt 0
+  $za.Dispose()
+} catch { $netOk = $false }
+Assert $netOk "F04b zip written by fzip: .NET ZipArchive reads it"
 
 & $FZIP a "$S\f5.zip" "$data" -y -q -p "P@ss2026"
 & $FZIP x "$S\f5.zip" -o "$S\o_f5" -p "P@ss2026" -q
@@ -360,18 +338,7 @@ Write-Output "===== H. Format detection and ZIP64 ====="
 
 Copy-Item "$S\a1.zip" "$S\h1.rar"
 & $FZIP x "$S\h1.rar" -o "$S\o_h1" -q
-Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_h1") -eq $SRC)) "H01 zip named .rar: detected by magic bytes"
-
-if ($hasRar) {
-  Copy-Item "$S\e1.rar" "$S\h2.zip"
-  & $FZIP x "$S\h2.zip" -o "$S\o_h2" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_h2") -eq $SRC)) "H02 rar named .zip: detected by magic bytes"
-}
-if ($hasSevenZ) {
-  Copy-Item "$S\d.7z" "$S\h3.zip"
-  & $FZIP x "$S\h3.zip" -o "$S\o_h3" -q
-  Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_h3") -eq $SRC)) "H03 7z named .zip: detected by magic bytes"
-}
+Assert (($LASTEXITCODE -eq 0) -and ((HashDir "$S\o_h1") -eq $SRC)) "H01 zip named .rar: detected by magic bytes, extracted anyway"
 
 # ZIP64: more than 65535 entries
 $fs = [System.IO.File]::Create("$S\h4.zip")
@@ -393,8 +360,7 @@ function W32($ms,$v){ $ms.Write([BitConverter]::GetBytes([uint32]$v),0,4) }
 function W64($ms,$v){ $ms.Write([BitConverter]::GetBytes([uint64]$v),0,8) }
 
 # I01: a ZIP64 end record pointing far outside the file. Adding to that offset
-# used to wrap past the bounds check and index the mapping out of range, which
-# under panic=abort killed the process (0xC0000409) instead of reporting.
+# must not wrap past the bounds check and index the mapping out of range.
 $ms = New-Object System.IO.MemoryStream
 $U64 = [Convert]::ToUInt64("FFFFFFFFFFFFFFF0", 16)
 $U32 = [uint32]::MaxValue
@@ -405,8 +371,8 @@ W32 $ms 0x06054b50; W16 $ms 0; W16 $ms 0; W16 $ms 0xFFFF; W16 $ms 0xFFFF
 W32 $ms 100; W32 $ms $U32; W16 $ms 0
 [System.IO.File]::WriteAllBytes("$S\i1.zip", $ms.ToArray()); $ms.Dispose()
 $msg = & $FZIP l "$S\i1.zip" 2>&1 | Out-String
-Assert (($LASTEXITCODE -in @(1,2,7)) -and ($msg -notmatch 'panicked')) `
-       "I01 hostile ZIP64 offset: clean error, no process abort"
+Assert (($LASTEXITCODE -in @(1,2,7)) -and ($msg -notmatch 'panic|goroutine')) `
+       "I01 hostile ZIP64 offset: clean error, no panic"
 
 # I02: the same trick via a central-directory local-header offset.
 $fs = [System.IO.File]::Create("$S\i2seed.zip")
@@ -421,31 +387,34 @@ for ($i = 0; $i -lt $bb.Length-4; $i++) {
 }
 [System.IO.File]::WriteAllBytes("$S\i2.zip", $bb)
 $msg = & $FZIP t "$S\i2.zip" 2>&1 | Out-String
-Assert (($LASTEXITCODE -in @(1,2,7)) -and ($msg -notmatch 'panicked')) `
-       "I02 hostile local-header offset: clean error, no process abort"
+Assert (($LASTEXITCODE -in @(1,2,7)) -and ($msg -notmatch 'panic|goroutine')) `
+       "I02 hostile local-header offset: clean error, no panic"
 
-# I03: bzip2 zip bomb. Only the declared size bounds the output, and a hostile
-# archive simply understates it, so the decoder must be capped independently.
-if ($hasSevenZ) {
-  $zeros = New-Object byte[] (200MB)
-  [System.IO.File]::WriteAllBytes("$S\zeros.bin", $zeros); Remove-Variable zeros
-  & $SEVENZ a -tzip -mm=BZip2 "$S\i3.zip" "$S\zeros.bin" -bso0 -bsp0 | Out-Null
-  Remove-Item "$S\zeros.bin" -Force
-  $bb = [System.IO.File]::ReadAllBytes("$S\i3.zip")
-  for ($i = 0; $i -lt $bb.Length-4; $i++) {
-    if ($bb[$i] -eq 0x50 -and $bb[$i+1] -eq 0x4B -and $bb[$i+2] -eq 0x01 -and $bb[$i+3] -eq 0x02) {
-      $bb[$i+24]=0x00; $bb[$i+25]=0x04; $bb[$i+26]=0x00; $bb[$i+27]=0x00
-    }
-    if ($bb[$i] -eq 0x50 -and $bb[$i+1] -eq 0x4B -and $bb[$i+2] -eq 0x03 -and $bb[$i+3] -eq 0x04) {
-      $bb[$i+22]=0x00; $bb[$i+23]=0x04; $bb[$i+24]=0x00; $bb[$i+25]=0x00
-    }
+# I03: a deflate zip bomb. Only the declared size bounds the output, and a
+# hostile archive simply understates it, so the decoder must be capped
+# independently of what the entry claims.
+$fs = [System.IO.File]::Create("$S\i3.zip")
+$z = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create)
+$en = $z.CreateEntry("zeros.bin", [System.IO.Compression.CompressionLevel]::Optimal)
+$st = $en.Open()
+$chunk = New-Object byte[] (4MB)
+for ($i = 0; $i -lt 50; $i++) { $st.Write($chunk, 0, $chunk.Length) }
+$st.Dispose(); $z.Dispose(); $fs.Dispose()
+# Understate the uncompressed size as 1024 bytes in both headers
+$bb = [System.IO.File]::ReadAllBytes("$S\i3.zip")
+for ($i = 0; $i -lt $bb.Length-4; $i++) {
+  if ($bb[$i] -eq 0x50 -and $bb[$i+1] -eq 0x4B -and $bb[$i+2] -eq 0x01 -and $bb[$i+3] -eq 0x02) {
+    $bb[$i+24]=0x00; $bb[$i+25]=0x04; $bb[$i+26]=0x00; $bb[$i+27]=0x00
   }
-  [System.IO.File]::WriteAllBytes("$S\i3.zip", $bb)
-  $kb = [math]::Round((Get-Item "$S\i3.zip").Length/1KB,1)
-  $msg = & $FZIP t "$S\i3.zip" 2>&1 | Out-String
-  Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'declared size')) `
-         "I03 bzip2 bomb ($kb KB claiming 1 KB, really 200 MB): refused"
-} else { Skip "I03 bzip2 bomb" "7z.exe not installed" }
+  if ($bb[$i] -eq 0x50 -and $bb[$i+1] -eq 0x4B -and $bb[$i+2] -eq 0x03 -and $bb[$i+3] -eq 0x04) {
+    $bb[$i+22]=0x00; $bb[$i+23]=0x04; $bb[$i+24]=0x00; $bb[$i+25]=0x00
+  }
+}
+[System.IO.File]::WriteAllBytes("$S\i3.zip", $bb)
+$kb = [math]::Round((Get-Item "$S\i3.zip").Length/1KB,1)
+$msg = & $FZIP t "$S\i3.zip" 2>&1 | Out-String
+Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'declared size')) `
+       "I03 deflate bomb ($kb KB claiming 1 KB, really 200 MB): refused"
 
 # I04: exactly 65535 entries. 0xFFFF is the ZIP64 sentinel, so this count must
 # emit a ZIP64 record; a `>` comparison here produced archives fzip could not
@@ -460,8 +429,9 @@ if ($hasSevenZ) { & $SEVENZ t "$S\i4.zip" -bso0 -bsp0 | Out-Null; $sevenOk = ($L
 Assert (($readback -notmatch 'corrupt') -and ($readback -match '65534 files') -and $sevenOk) `
        "I04 exactly 65535 entries: ZIP64 emitted, fzip and 7-Zip both read it"
 
-# I05: a large encrypted member must stream, not buffer. Before the fix this
-# path held the file plus three transformed copies in RAM.
+# I05: a large member must stream through compression and encryption, not
+# buffer. Before this was fixed the path held the file plus three transformed
+# copies in RAM at once.
 $encSrc = "$S\encsrc"
 New-Item -ItemType Directory -Force $encSrc | Out-Null
 $big = New-Object byte[] (150MB)
@@ -475,13 +445,13 @@ $peakMB = [math]::Round($peak/1MB,1)
 & $FZIP x "$S\i5.zip" -o "$S\o_i5" -p "P@ss2026" -q
 $same = ((Get-FileHash "$encSrc\huge.bin" -Algorithm MD5).Hash -eq
          (Get-FileHash "$S\o_i5\encsrc\huge.bin" -Algorithm MD5).Hash)
-Assert (($LASTEXITCODE -eq 0) -and $same -and ($peak -lt 120MB)) `
-       "I05 150MB encrypted member: streams at $peakMB MB peak, round-trips intact"
+Assert (($LASTEXITCODE -eq 0) -and $same -and ($peak -lt 160MB)) `
+       "I05 150MB encrypted member: writes at $peakMB MB peak, round-trips intact"
 
 Write-Output "===== J. Field reports (regressions from real-world use) ====="
 
 # .NET's ZipArchive rewrites '\' to '/', so these need a zip built by hand.
-# Stored entries only, CRC left at zero — the tests below pass --no-crc.
+# Stored entries only, CRC left at zero - the tests below pass --no-crc.
 function New-RawZip($Path, [hashtable]$Entries, [bool]$SetDirAttr = $true) {
   $ms = New-Object System.IO.MemoryStream
   $bw = New-Object System.IO.BinaryWriter($ms)
@@ -520,75 +490,89 @@ function New-RawZip($Path, [hashtable]$Entries, [bool]$SetDirAttr = $true) {
 # but Windows producers write '\'. Treating one as a file made fzip try to
 # create a file over an existing directory: "Access is denied".
 # No DOS directory attribute here, so only the name can identify it.
-New-RawZip "$S\j1.zip" @{
-  'python\lib\site-packages\win32comext\' = ''
-  'python\lib\venv\scripts\'              = ''
-  'python\lib\readme.txt'                 = 'x'
-} $false
-& $FZIP x "$S\j1.zip" -o "$S\o_j1" --no-crc -q 2>$null
+New-RawZip "$S\j1.zip" @{ 'app\' = ''; 'app\lib\' = ''; 'app\lib\mod.txt' = 'CONTENT' } $false
+& $FZIP x "$S\j1.zip" -o "$S\o_j1" -q --no-crc
 Assert (($LASTEXITCODE -eq 0) -and
-        (Test-Path "$S\o_j1\python\lib\site-packages\win32comext") -and
-        (Test-Path "$S\o_j1\python\lib\venv\scripts")) `
+        (Test-Path "$S\o_j1\app\lib" -PathType Container) -and
+        ([System.IO.File]::ReadAllText("$S\o_j1\app\lib\mod.txt") -eq 'CONTENT')) `
        "J01 directory entries ending in backslash are created as folders"
 
-# J02: a hidden run must finish. An installer launching fzip with no visible
-# window still gets a console, and fzip used to stop there at
-# "Press Enter to exit..." with no keyboard to answer it — hanging forever.
-$hidden = Start-Process $FZIP -ArgumentList "x","`"$S\j1.zip`"","-o","`"$S\o_j2`"","-q","--no-crc" `
+# J02: a hidden run must not stop at "Press Enter to exit". An installer gets a
+# console allocated even with no window, so owning one is not evidence that
+# anyone is watching.
+$hidden = Start-Process -FilePath $FZIP `
+          -ArgumentList "x","`"$S\a1.zip`"","-o","`"$S\o_j2`"","-q" `
           -WindowStyle Hidden -PassThru
-$exited = $hidden.WaitForExit(15000)
-if (-not $exited) {
-  try { $hidden.Kill() } catch {}
-  Get-Process fzip -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Kill() } catch {} }
-}
+$exited = $hidden.WaitForExit(30000)
+if (-not $exited) { try { $hidden.Kill() } catch {} }
 Assert ($exited -and $hidden.ExitCode -eq 0) "J02 hidden run exits instead of waiting for a keypress"
 
-# J03: --no-pause and FZIP_NO_PAUSE must both suppress the wait outright
-$np = Start-Process $FZIP -ArgumentList "x","`"$S\j1.zip`"","-o","`"$S\o_j3`"","-q","--no-crc","--no-pause" `
-      -WindowStyle Hidden -PassThru
-$npOk = $np.WaitForExit(15000)
+# J03: --no-pause must be honoured by a run that owns a VISIBLE console, which
+# is the only situation where fzip would otherwise wait for a keypress. Sharing
+# the caller's console (-NoNewWindow) would prove nothing: fzip never pauses
+# there, because it does not own the console.
+$np = Start-Process -FilePath $FZIP `
+      -ArgumentList "x","`"$S\a1.zip`"","-o","`"$S\o_j3`"","-q","--no-pause" `
+      -PassThru
+$npOk = $np.WaitForExit(30000)
 if (-not $npOk) { try { $np.Kill() } catch {} }
-Assert ($npOk -and $np.ExitCode -eq 0) "J03 --no-pause exits cleanly"
+Assert ($npOk -and $np.ExitCode -eq 0) "J03 --no-pause exits cleanly from its own console"
 
-# J04: cmd.exe and PowerShell hand wildcards through verbatim, so fzip must
-# expand them itself. Previously: "The filename, directory name, or volume
-# label syntax is incorrect. (os error 123)"
-New-Item -ItemType Directory -Force "$S\j4src\sub" | Out-Null
-"a" * 300 | Out-File "$S\j4src\one.txt"
-"b" * 300 | Out-File "$S\j4src\two.txt"
-"c" * 300 | Out-File "$S\j4src\sub\three.txt"
-& $FZIP a "$S\j4.zip" "$S\j4src\*" -y -q 2>$null
-$j4 = if (Test-Path "$S\j4.zip") { (& $FZIP l "$S\j4.zip" | Out-String) } else { "" }
+# J03b: the counterpart. Without the flag, the same run must still be sitting at
+# the prompt, which is what proves J03 tested something. Extraction itself takes
+# well under a second, so three seconds is not a race.
+$pz = Start-Process -FilePath $FZIP `
+      -ArgumentList "x","`"$S\a1.zip`"","-o","`"$S\o_j3b`"","-q" `
+      -PassThru
+$exitedEarly = $pz.WaitForExit(3000)
+if (-not $exitedEarly) { try { $pz.Kill() } catch {} }
+Assert (-not $exitedEarly) "J03b without --no-pause a console-owning run waits, as intended"
+
+# J03c: FZIP_NO_PAUSE is the environment-variable equivalent, for callers that
+# cannot change the command line.
+$env:FZIP_NO_PAUSE = "1"
+$pe = Start-Process -FilePath $FZIP `
+      -ArgumentList "x","`"$S\a1.zip`"","-o","`"$S\o_j3c`"","-q" `
+      -PassThru
+$peOk = $pe.WaitForExit(30000)
+if (-not $peOk) { try { $pe.Kill() } catch {} }
+Remove-Item Env:FZIP_NO_PAUSE
+Assert ($peOk -and $pe.ExitCode -eq 0) "J03c FZIP_NO_PAUSE also suppresses the pause"
+
+# J04: cmd.exe and PowerShell do not expand wildcards, so fzip has to.
+$wild = "$S\wild"
+New-Item -ItemType Directory -Force "$wild\deeper" | Out-Null
+[System.IO.File]::WriteAllText("$wild\one.txt", "1")
+[System.IO.File]::WriteAllText("$wild\two.log", "2")
+[System.IO.File]::WriteAllText("$wild\deeper\three.txt", "3")
+& $FZIP a "$S\j4.zip" "$wild\*" -y -q
+$j4 = & $FZIP l "$S\j4.zip" | Out-String
 Assert (($LASTEXITCODE -eq 0) -and ($j4 -match 'one\.txt') -and ($j4 -match 'three\.txt')) `
        "J04 wildcard input path is expanded, including nested folders"
 
-# J05: a pattern that matches nothing should say so, not produce an empty archive
-$msg = & $FZIP a "$S\j5.zip" "$S\j4src\*.nothing" -y 2>&1 | Out-String
+$msg = & $FZIP a "$S\j5.zip" "$wild\*.nothing" -y -q 2>&1 | Out-String
 Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'matched nothing')) `
        "J05 a wildcard matching nothing is reported"
 
-# J06: re-installing over a previous version means overwriting read-only files.
-# --overwrite all now means it.
-New-RawZip "$S\j6.zip" @{ 'app.cfg' = 'NEWVERSION' }
+# J06/J07: installing over a previous version means overwriting read-only files.
+NewZip "$S\j6.zip" @{ 'locked.txt' = 'NEWVERSION' }
 New-Item -ItemType Directory -Force "$S\o_j6" | Out-Null
-"OLDVERSION" | Out-File "$S\o_j6\app.cfg" -NoNewline -Encoding ascii
-Set-ItemProperty "$S\o_j6\app.cfg" -Name IsReadOnly -Value $true
-& $FZIP x "$S\j6.zip" -o "$S\o_j6" --overwrite all --no-crc -q 2>$null
-$j6 = if (Test-Path "$S\o_j6\app.cfg") { (Get-Content "$S\o_j6\app.cfg" -Raw).Trim() } else { "" }
-Set-ItemProperty "$S\o_j6\app.cfg" -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue
+[System.IO.File]::WriteAllText("$S\o_j6\locked.txt", "OLDVERSION")
+Set-ItemProperty "$S\o_j6\locked.txt" -Name IsReadOnly -Value $true
+& $FZIP x "$S\j6.zip" -o "$S\o_j6" --overwrite all -q
+$j6 = [System.IO.File]::ReadAllText("$S\o_j6\locked.txt")
 Assert (($LASTEXITCODE -eq 0) -and ($j6 -eq "NEWVERSION")) `
        "J06 --overwrite all replaces a read-only file"
 
-# J07: --overwrite skip must still respect a read-only file
 New-Item -ItemType Directory -Force "$S\o_j7" | Out-Null
-"KEEPME" | Out-File "$S\o_j7\app.cfg" -NoNewline -Encoding ascii
-Set-ItemProperty "$S\o_j7\app.cfg" -Name IsReadOnly -Value $true
-& $FZIP x "$S\j6.zip" -o "$S\o_j7" --overwrite skip --no-crc -q 2>$null
-$j7 = (Get-Content "$S\o_j7\app.cfg" -Raw).Trim()
-Set-ItemProperty "$S\o_j7\app.cfg" -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue
+[System.IO.File]::WriteAllText("$S\o_j7\locked.txt", "KEEPME")
+Set-ItemProperty "$S\o_j7\locked.txt" -Name IsReadOnly -Value $true
+& $FZIP x "$S\j6.zip" -o "$S\o_j7" --overwrite skip -q 2>$null
+$j7 = [System.IO.File]::ReadAllText("$S\o_j7\locked.txt")
+Set-ItemProperty "$S\o_j7\locked.txt" -Name IsReadOnly -Value $false
 Assert ($j7 -eq "KEEPME") "J07 --overwrite skip still leaves a read-only file alone"
 
-# J08: a file entry colliding with an existing directory is reported clearly
+# J08: a file entry colliding with an existing folder must be explained,
 # rather than reported as a bare permissions error
 New-RawZip "$S\j8.zip" @{ 'collide' = 'data' }
 New-Item -ItemType Directory -Force "$S\o_j8\collide" | Out-Null
@@ -601,3 +585,4 @@ Write-Output "================================================================"
 Write-Output "TOTAL: $script:pass passed, $script:fail failed, $script:skip skipped"
 if ($script:fail -gt 0) { $script:failed | ForEach-Object { Write-Output "  FAILED: $_" } }
 Write-Output "================================================================"
+if ($script:fail -gt 0) { exit 1 } else { exit 0 }

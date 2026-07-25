@@ -1,12 +1,11 @@
-# Only web/ is served. Keeping the Rust project out of the upload makes each
+# Only web/ is served. Keeping the Go project out of the upload makes each
 # deployment smaller and removes any chance of Vercel trying to build it.
-target/
-src/
 brand/
 *.exe
 *.ps1
-Cargo.toml
-Cargo.lock
-build.rs
+*.go
+*.syso
+go.mod
+go.sum
+versioninfo.json
 fzip.manifest
-.cargo/

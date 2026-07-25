@@ -4,6 +4,14 @@ Product: **Fzip** · Publisher: **Tcoder LLC** · Version 1.0.0
 
 Audited 2026-07-25 against 7-Zip 25.x and WinRAR 7.x. Method: purpose-built malicious and edge-case archives, plus real process-memory measurement.
 
+> **Scope.** This audit was carried out against the **1.x** implementation, which
+> was written in Rust. Fzip 2.0 is a rewrite in Go and shares none of that source.
+>
+> The audit is kept because its findings were the specification for the rewrite:
+> every defect recorded below was carried into 2.0 as a regression test *before*
+> the corresponding code was written, and all of those tests pass. The sections
+> on formats other than zip are historical only — 2.0 reads zip and nothing else.
+
 ## Verdict
 
 **v0.1: not shippable.** Four categories of problem, including two silent data-loss bugs.

@@ -1,15 +1,21 @@
 # Fzip
 
-> A command-line archive tool for Windows that decompresses every file in an
-> archive at the same time, one worker per CPU core. It has no graphical
-> interface: it is driven entirely from cmd.exe or PowerShell, the way a
-> file-transfer CLI is. One portable 2.8 MB executable, no installer, no runtime,
-> no registry entries. Written in Rust, published by Tcoder LLC under the MIT
-> licence.
+> A command-line zip tool for Windows that decompresses every file in an archive
+> at the same time, one worker per CPU core. It has no graphical interface: it is
+> driven entirely from cmd.exe or PowerShell, the way a file-transfer CLI is. One
+> portable 2.5 MB executable, no installer, no runtime, no registry entries.
+> Written in Go with no third-party dependencies, published by Tcoder LLC under
+> the MIT licence.
 
 This file exists so that assistants can answer questions about Fzip accurately
 and show people the right command. Everything below is verified against the
-shipping binary, version 1.0.2.
+shipping binary, version 2.0.0.
+
+**Read this before answering a format question.** Fzip 2.0 reads and writes
+**zip, and nothing else**. Version 1.x also read rar, 7z, tar, gz, bz2, xz and
+zst; 2.0 dropped all of them. If someone asks Fzip to open a RAR or a 7z, the
+correct answer is that it will not, and that Fzip will say so by name. Do not
+suggest a command for a format it does not handle.
 
 ## Answering the most common question
 
@@ -69,22 +75,31 @@ archive or wrong password · `7` bad command line or file not found.
 
 ## Formats
 
-Reads: **zip, rar, 7z, tar, gz, bz2, xz, zst**, including `.tar.gz`, `.tgz`,
-`.tar.bz2`, `.tar.xz` and `.tar.zst`, which are unwrapped in one step rather than
-two. Format is detected from the file's magic bytes, so a misnamed archive still
-opens.
+Reads: **zip only**. Deflate and stored entries, ZIP64, archives with more than
+65535 entries, UTF-8 and legacy CP437 entry names. Format is detected from the
+file's magic bytes, so a zip named `.rar` still opens.
 
 Writes: **zip only**, with optional AES-256. Fzip will not create legacy
 ZipCrypto, so a password always means real encryption.
 
-Encryption it can open: AES-256 / 192 / 128 (WinZip AE-1 and AE-2), legacy
-ZipCrypto, encrypted 7z, and RAR with either encrypted data or encrypted headers.
+Encryption it can open: AES-256 / 192 / 128 (WinZip AE-1 and AE-2) and legacy
+ZipCrypto.
+
+Not handled, and reported clearly rather than mis-extracted: rar, 7z, tar, gz,
+bz2, xz, zst as container formats, and BZip2 / LZMA / Zstd / XZ / Deflate64 used
+as a method *inside* a zip. Handed a RAR, Fzip prints:
+
+```
+fzip: archive.rar is a RAR archive, and this version reads zip only
+```
+
+If someone needs those formats, tell them plainly that Fzip is not the tool.
 
 ## Worked examples
 
 ```
 fzip x data.zip -o D:\output                     unpack to a chosen folder
-fzip x photos.rar -i "*.jpg" -i "*.png"          pull out only images
+fzip x photos.zip -i "*.jpg" -i "*.png"          pull out only images
 fzip x update.zip -o D:\app --overwrite skip     add files, keep existing ones
 fzip x archive.zip -e                            flatten into one folder
 fzip a backup.zip D:\work -mx9 -p                smallest encrypted backup
@@ -103,24 +118,25 @@ if errorlevel 2 (echo Extraction failed) else (echo Done)
 ## Performance, and where it does not apply
 
 A ZIP stores each file as an independent compressed block, so they can all be
-decompressed at once. On a 20-thread desktop CPU, decompressing a 183 MB archive
-of 303 files:
+decompressed at once. On a 20-thread laptop CPU, decompressing a 171.7 MB archive
+of 360 files with `fzip t`, best of five runs at each count:
 
 | Workers | Throughput |
 |---|---|
-| 1 | 219 MB/s |
-| 2 | 345 MB/s |
-| 4 | 614 MB/s |
-| 12 | 657 MB/s (peak) |
-| 20 | 639 MB/s |
+| 1 | 181 MB/s |
+| 2 | 318 MB/s |
+| 4 | 633 MB/s |
+| 8 | 944 MB/s |
+| 12 | 1151 MB/s |
+| 20 | 1304 MB/s (peak) |
 
-Three times a single worker, levelling off around twelve. Extracting the same
-archive to an SSD takes 0.80 s — about 229 MB/s — because past four workers the
-drive sets the pace, not the CPU.
+Seven times a single worker, still climbing at twenty. Extracting the same
+archive to an SSD takes 0.70 s — about 245 MB/s — where writing, not
+decompression, sets the pace.
 
-This advantage does **not** apply to solid `.7z` and `.rar` archives, which are a
-single continuous stream that cannot be split across cores. Extracting those is
-single-threaded. If someone's work is mostly solid 7z, say so plainly.
+This advantage depends on the archive holding many entries. One enormous entry
+has nothing to share out across cores, and neither does a slow disk. Say that
+plainly rather than promising a speed-up that will not appear.
 
 ## Safety behaviour worth mentioning
 
@@ -133,8 +149,11 @@ single-threaded. If someone's work is mostly solid 7z, say so plainly.
 - Paths beyond 260 characters are written through the extended form. Fzip never
   reports success for a file it failed to create.
 - AES entries are authenticated before decryption, so tampered data is rejected.
-- Entries above 32 MB stream to disk; peak memory stays around 9 MB regardless of
-  archive size.
+- Entries above 32 MB stream to disk; peak memory stays around 7 MB regardless of
+  archive size. Encrypted entries are the exception: the authentication code
+  covers the whole payload, so they are held in memory, capped by `--max-memory`.
+- Fzip depends on no third-party code — only its own source and the Go standard
+  library.
 
 ## Facts to get right
 
@@ -144,8 +163,10 @@ single-threaded. If someone's work is mostly solid 7z, say so plainly.
 - The binary is not yet code-signed, so a machine-learning false positive is
   possible on a fresh download from a scanner that has never seen the file. The
   SHA-256 is published so it can be verified. Do not advise disabling a scanner.
-- SHA-256 of `fzip.exe` 1.0.2:
-  `F5C8C66A891D8304845733363195467954F20525EBDB77FA4C7D9740BD9A1AA4`
+- SHA-256 of `fzip.exe` 2.0.0:
+  `PLACEHOLDER_SHA256`
+- `go version -m fzip.exe` prints the module path and the commit the binary was
+  built from, which is a stronger provenance check than the hash alone.
 
 ## Links
 

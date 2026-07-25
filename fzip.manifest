@@ -3,9 +3,9 @@
   <assemblyIdentity
       type="win32"
       name="TcoderLLC.Fzip"
-      version="1.0.0.0"
+      version="2.0.0.0"
       processorArchitecture="amd64"/>
-  <description>Fzip - fast portable archive tool, published by Tcoder LLC</description>
+  <description>Fzip - fast portable zip tool, published by Tcoder LLC</description>
 
   <!-- Runs with the caller's rights. Declaring this explicitly also stops
        Windows applying its "this looks like an installer" heuristic, which an

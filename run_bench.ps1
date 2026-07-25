@@ -1,4 +1,4 @@
-# =====================================================================
+﻿# =====================================================================
 #  fzip - benchmark against 7-Zip, WinRAR, tar and .NET
 #  Usage:  .\run_bench.ps1
 # =====================================================================
@@ -9,8 +9,7 @@ $B = Join-Path $env:TEMP "fzip_bench"
 if (Test-Path -LiteralPath $B) { Remove-Item -LiteralPath $B -Recurse -Force -Confirm:$false }
 New-Item -ItemType Directory -Force $B | Out-Null
 
-$FZIP = Join-Path $PSScriptRoot "target\release\fzip.exe"
-if (-not (Test-Path -LiteralPath $FZIP)) { $FZIP = Join-Path $PSScriptRoot "fzip.exe" }
+$FZIP = Join-Path $PSScriptRoot "fzip.exe"
 $SEVENZ = "C:\Program Files\7-Zip\7z.exe"
 $WINRAR = "C:\Program Files\WinRAR\WinRAR.exe"
 $RAR    = "C:\Program Files\WinRAR\Rar.exe"
@@ -92,28 +91,18 @@ $res2 | Sort-Object Sec | ForEach-Object {
 }
 
 Write-Output ""
-Write-Output "===== 3. EXTRACT 7z ====="
+Write-Output "===== 3. VERIFY ONLY (no disk writes) ====="
+# `fzip t` isolates decompression from storage, which is where the parallel
+# advantage actually lives. 7-Zip's `t` is the same idea, so the pair compares.
+$res3 = @()
+$res3 += Best "fzip t" 3 { param($d) & $FZIP t "$B\test.zip" -q --no-pause | Out-Null }
 if (Test-Path $SEVENZ) {
-  & $SEVENZ a "$B\test.7z" "$data\*" -bso0 -bsp0 | Out-Null
-  $res3 = @()
-  $res3 += Best "fzip" 3 { param($d) & $FZIP x "$B\test.7z" -o $d -q }
-  $res3 += Best "7-Zip" 3 { param($d) & $SEVENZ x "$B\test.7z" "-o$d" -y -bso0 -bsp0 | Out-Null }
-  Report $res3 $srcSize
+  $res3 += Best "7-Zip t" 3 { param($d) & $SEVENZ t "$B\test.zip" -bso0 -bsp0 | Out-Null }
 }
+Report $res3 $srcSize
 
 Write-Output ""
-Write-Output "===== 4. EXTRACT RAR ====="
-if (Test-Path $RAR) {
-  Push-Location $data; & $RAR a -r -idq "$B\test.rar" "docs" "src" | Out-Null; Pop-Location
-  $res4 = @()
-  $res4 += Best "fzip" 3 { param($d) & $FZIP x "$B\test.rar" -o $d -q }
-  $res4 += Best "WinRAR" 3 { param($d) New-Item -ItemType Directory -Force $d | Out-Null; & $WINRAR x -ibck -y "$B\test.rar" "$d\" | Out-Null }
-  if (Test-Path $SEVENZ) { $res4 += Best "7-Zip" 3 { param($d) & $SEVENZ x "$B\test.rar" "-o$d" -y -bso0 -bsp0 | Out-Null } }
-  Report $res4 $srcSize
-}
-
-Write-Output ""
-Write-Output "===== 5. PEAK RAM extracting a single 200 MB member ====="
+Write-Output "===== 4. PEAK RAM extracting a single 200 MB member ====="
 $big = New-Object byte[] (200MB)
 for ($k = 0; $k -lt $big.Length; $k += 4096) { $big[$k] = [byte]($k % 251) }
 [System.IO.File]::WriteAllBytes("$B\huge.bin", $big); Remove-Variable big
@@ -133,3 +122,4 @@ if (Test-Path $SEVENZ) {
 }
 Write-Output ""
 Write-Output "Done."
+

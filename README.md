@@ -2,93 +2,126 @@
 
 **Published by Tcoder LLC.** MIT licensed.
 
-A single-file, no-install archive tool for Windows. Portable in the spirit of Microsoft's `azcopy.exe` — one self-contained `.exe` you copy anywhere and drive from the command line. (That comparison is about how the tool is *shipped*, not how it is built: azcopy is written in Go, Fzip in Rust.)
+A single-file, no-install zip tool for Windows. Portable in the spirit of
+Microsoft's `azcopy.exe` — one self-contained `.exe` you copy anywhere and drive
+from the command line.
 
-**Reads** zip · rar · 7z · tar · gz · bz2 · xz · zst
-**Writes** zip, optionally encrypted with AES-256
+**Reads** zip · **Writes** zip, optionally encrypted with AES-256
 
 ```bash
 fzip x archive.zip
 ```
 
+Written in Go, with **no third-party dependencies** — the only code in the binary
+is this repository and the Go standard library.
+
 ---
 
 ## Why it exists
 
-Extracting a ZIP on Windows is slower than it needs to be. 7-Zip, WinRAR, and PowerShell's `Expand-Archive` all decompress ZIP entries **one at a time on a single core**. fzip decompresses every entry **in parallel**, one per CPU core, straight out of a memory-mapped file.
-
-On a 20-thread machine that makes ZIP extraction about **2.7× faster than 7-Zip and WinRAR**.
+Extracting a ZIP on Windows is slower than it needs to be. 7-Zip, WinRAR and
+PowerShell's `Expand-Archive` decompress ZIP entries **one at a time on a single
+core**. Fzip decompresses every entry **in parallel**, one per CPU core, straight
+out of a memory-mapped file.
 
 ## Benchmarks
 
-AMD Ryzen AI 9 465 (20 threads), Windows 11. 303 files / 183 MB (78 MB compressed). Best of 3 runs. Reproduce with `.\run_bench.ps1`.
+AMD Ryzen AI 9 465 (20 threads), Windows 11. 303 files / 183.3 MB (77.8 MB
+compressed, including 120 MB of barely-compressible binary). Best of 3 runs.
+Reproduce with `.\run_bench.ps1`.
 
-**Extracting ZIP** — fzip's main use case:
+**Extracting ZIP:**
 
 | Tool | Time | Relative |
 |---|---|---|
-| **fzip** | **0.67 s** (274 MB/s) | fastest |
-| tar.exe (built into Windows 11) | 0.83 s | 1.24× slower |
-| WinRAR | 1.78 s | 2.67× slower |
-| 7-Zip | 1.81 s | 2.71× slower |
-| .NET `ZipFile` | 2.55 s | 3.82× slower |
+| tar.exe (built into Windows 11) | **0.831 s** | fastest |
+| **fzip** | 0.846 s (217 MB/s) | 1.02× slower |
+| 7-Zip | 1.814 s | 2.18× slower |
+| WinRAR | 1.861 s | 2.24× slower |
+| .NET `ZipFile` | 2.644 s | 3.18× slower |
 
 **Creating ZIP** (default level):
 
-| Tool | Time | Output size |
+| Tool | Time | Output |
 |---|---|---|
-| **fzip -mx5** | **1.65 s** | 77.8 MB |
-| 7-Zip -mx5 | 3.87 s (2.34× slower) | 75.8 MB |
-| .NET `ZipFile` | 17.45 s (10.6× slower) | 77.8 MB |
+| **fzip -mx5** | **1.328 s** | 74.3 MB |
+| 7-Zip -mx5 | 3.544 s (2.67× slower) | 75.8 MB |
+| .NET `ZipFile` | 17.580 s (13.2× slower) | 77.8 MB |
 
-7-Zip's deflate encoder squeezes out ~2.6% more; fzip trades that for roughly double the speed.
+**Verifying only**, which isolates decompression from the disk:
 
-**Where fzip is *not* the fastest** — measured, not hidden:
-
-| Task | Winner | fzip |
+| Tool | Time | Throughput |
 |---|---|---|
-| Extract 7z | 7-Zip 3.68 s | 4.92 s (1.34× slower) |
-| Extract RAR | 7-Zip 1.61 s | 2.08 s (1.29× slower, still ahead of WinRAR's 2.26 s) |
+| **fzip t** | **0.507 s** | 362 MB/s |
+| 7-Zip t | 1.413 s (2.79× slower) | 130 MB/s |
 
-Both gaps are in the decoder itself. 7-Zip's LZMA2 and RAR decoders are hand-tuned assembly refined over two decades; fzip uses portable Rust implementations, and a solid 7z archive is a single stream that cannot be split across cores. If your workload is mostly `.7z`, use 7-Zip.
+**Peak RAM** on a single 200 MB member: fzip 6.9 MB, 7-Zip 8.0 MB.
 
-**Peak memory**, extracting one 200 MB member: fzip 9.2 MB, 7-Zip 8.0 MB. fzip streams large entries to disk rather than buffering them.
+### Read these numbers honestly
+
+- **Extraction is a tie with `tar.exe`**, not a win. Windows ships a competent
+  ZIP extractor and on this archive it is 2% ahead. The margin over 7-Zip and
+  WinRAR is real — roughly 2.2× — but "fastest on Windows" would be false, so it
+  is not claimed.
+- **Throughput depends on how compressible the archive is.** The archive above
+  is deliberately hostile: two thirds of it is near-random binary that will not
+  compress, so storage dominates. On an archive of ordinary documents the same
+  binary verifies at 1,304 MB/s. Both numbers are real; neither is *the* number.
+- **Fzip 1.x extracted faster.** That release was written in Rust and used
+  libdeflate, which decompresses faster than Go's `compress/flate`. The move to
+  Go cost roughly 25% on the extract path. It bought a binary with no
+  third-party code in it; that trade was made deliberately, not accidentally.
+
+## What changed in 2.0
+
+Fzip 2.0 is a rewrite in Go, and it reads **zip only**. Version 1.x also read
+rar, 7z, tar, gz, bz2, xz and zst; all of that is gone. Hand Fzip one of those
+and it names the format rather than reporting a broken zip:
+
+```
+> fzip x archive.rar
+fzip: archive.rar is a RAR archive, and this version reads zip only
+```
+
+If you need those formats, keep a tool that has them. Details in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
 Download: **<https://fzip.org/download/fzip.exe>**
 
-There is no installer. Download `fzip.exe` and run it. It needs no runtime, no DLLs, and no registry entries.
+There is no installer. Download `fzip.exe` and run it. It needs no runtime, no
+DLLs and no registry entries.
 
 Verify what you downloaded:
 
 ```powershell
 Get-FileHash fzip.exe -Algorithm SHA256
-# EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552
+# PLACEHOLDER_SHA256
 ```
 
-That hash identifies the published binary. Building from source yourself yields a functionally identical executable with a different hash, because Rust builds are not bit-for-bit reproducible.
+Go also records the source inside the executable, which is a stronger check than
+the hash alone:
+
+```powershell
+go version -m fzip.exe
+```
 
 > **Seeing an antivirus warning such as `Wacatac.B!ml`?** It is a
 > machine-learning false positive. [ANTIVIRUS.md](ANTIVIRUS.md) documents what
-> was actually measured: the language is not the cause (a minimal Rust binary
-> and a minimal Go binary both scan clean), no single dependency is the cause,
-> and the same source recompiled can flip the verdict — because it attaches to a
-> file hash, driven by the absence of a code signature and zero prevalence.
->
-> One genuine contributor *was* found and fixed: RAR support dragged in four
-> privilege APIs (`AdjustTokenPrivileges` and friends) that Fzip never calls,
-> from UnRAR's unused shutdown and admin-check code. RAR is now a compile-time
-> feature, so `cargo build --release --no-default-features` produces a build
-> without RAR and without any of those imports. Only the full build is published.
+> was measured rather than assumed: the implementation language is not the cause
+> (a minimal Rust binary and a minimal Go binary both scan clean), no single
+> dependency was the cause, and the same source recompiled can flip the verdict.
+> It attaches to a **file hash**, driven by the absence of a code signature and
+> zero download history. A code-signing certificate is the only real fix.
 
 ## Usage
 
 ```
-fzip x <archive> [options]        extract
-fzip <archive>                    extract (shorthand, also works by drag-and-drop)
-fzip l <archive>                  list contents
-fzip t <archive>                  test integrity, write nothing
+fzip x <archive.zip> [options]    extract
+fzip <archive.zip>                extract (shorthand, also works by drag-and-drop)
+fzip l <archive.zip>              list contents
+fzip t <archive.zip>              test integrity, write nothing
 fzip a <archive.zip> <files...>   create a zip
 ```
 
@@ -96,108 +129,80 @@ fzip a <archive.zip> <files...>   create a zip
 |---|---|
 | `-o <dir>` | output folder (default: the archive name) |
 | `-p <pass>` | password; prompts securely if omitted |
-| `-t <n>` | CPU threads (default: all) |
+| `-t <n>` | worker count (default: every core) |
 | `-i <glob>` | include only matching names |
 | `-x <glob>` | exclude matching names |
 | `-e` | flatten: ignore folder structure |
 | `-y` | assume yes (overwrite the archive when creating) |
-| `--overwrite <mode>` | `all` (default), `skip`, `rename`, `newer` |
+| `--overwrite <m>` | `all` \| `skip` \| `rename` \| `newer` (default `all`) |
 | `-mx<0-9>` | compression level for `a` (0 = store, 9 = best) |
-| `--max-memory <n>` | RAM cap, e.g. `512M`, `2G` (default 1G) |
+| `--max-memory <n>` | RAM cap, e.g. `512M` or `2G` (default 1G) |
 | `--no-crc` | skip CRC verification |
 | `--progress` | force the progress bar even when redirected |
-| `--no-pause` | Never wait for a keypress at the end. Set it for installers and scripts; the environment variable `FZIP_NO_PAUSE` does the same. |
+| `--no-pause` | never wait for a keypress (installers, scripts) |
 | `-q` / `-v` | quiet / verbose |
-| `-V` | version |
 
-Examples:
+Exit codes: `0` ok, `1` warning, `2` error, `7` bad command line.
+
+Full reference: [web/usage.md](web/usage.md), also served at
+<https://fzip.org/usage.md>.
+
+## Building
+
+Requires Go 1.24 or newer. There is nothing to fetch — the module has no
+dependencies.
 
 ```bash
-fzip x data.zip -o D:\out
-fzip x secret.7z -p MyPass123
-fzip x big.rar -x "*.tmp" --overwrite skip
-fzip a backup.zip photos docs -mx9 -p MyPass123
-fzip t archive.zip
+go build -trimpath -ldflags "-s -w" -o fzip.exe .
 ```
 
-Format is detected from the file's **magic bytes**, not its extension — a `.zip` that is really a RAR still extracts correctly.
+The icon, manifest and version resource come from `resource.syso`, which is
+committed so an ordinary build needs no extra tooling. Regenerate it only when
+`versioninfo.json`, `fzip.manifest` or `brand/fzip.ico` change:
 
-### Awkward archives
-
-Not every producer writes well-formed names. Windows' own `tar.exe` stores non-ASCII names without the UTF-8 flag, substituting `?` for characters it cannot encode. `Expand-Archive` then aborts the whole archive with *"Illegal characters in path"*; fzip sanitises the offending characters and extracts the data anyway. (On a normal UTF-8 zip, such as one written by .NET or 7-Zip, `Expand-Archive` handles non-ASCII names fine — the problem is the producer, not the alphabet.)
-
-### Progress
-
-```
-Extracting test.zip (303 files, 183.30 MB) -> D:\out
-[==========>             ]  42.1%  128/303  77.12 MB  268.40 MB/s  ETA 1s
-[========================] 100.0%  303/303  183.30 MB  269.10 MB/s  ETA --
-Done: 303 files, 77.84 MB -> 183.30 MB in 0.682s (268.75 MB/s)
+```bash
+go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0 -o resource.syso versioninfo.json
 ```
 
-### Exit codes
-
-Same convention as 7-Zip, so existing scripts keep working: `0` success · `1` warning (something was skipped) · `2` error · `7` bad command line.
-
-## Encryption
-
-**Reading:** AES-256/192/128 (WinZip AE-1 and AE-2), legacy ZipCrypto, RAR data and header encryption (`rar a -p` and `-hp`), and encrypted 7z.
-
-**Writing:** AES-256 only. fzip deliberately will not create ZipCrypto archives — that cipher is broken and recoverable with a known-plaintext attack. If you ask fzip for a password, you get real encryption.
-
-AES entries are verified with HMAC-SHA1 **before** decryption (encrypt-then-MAC), so tampered data is rejected instead of silently producing garbage. Salts come from the OS CSPRNG and are fresh on every entry.
-
-Archives fzip encrypts are ordinary WinZip-AES archives — 7-Zip and WinRAR open them normally (verified in the test suite).
-
-## Safety
-
-Every item below is covered by an automated test:
-
-- **Zip-slip blocked.** Entries containing `..`, absolute paths, or drive letters cannot write outside the destination, and each blocked entry is *reported* rather than silently dropped.
-- **Reserved device names renamed.** An entry called `CON`, `NUL`, `LPT1`, or `PRN.txt` becomes `_CON` and so on. Files actually named after a device are nearly impossible to delete from Explorer.
-- **Long paths work.** Paths beyond the 260-character `MAX_PATH` limit are written through the extended `\\?\` form. fzip never reports success for a file it failed to create.
-- **Bounded memory.** Entries above 32 MB stream to disk instead of being buffered, so a 50 GB member does not need 50 GB of RAM. `--max-memory` caps the rest.
-- **Zip-bomb warning** when an archive expands more than 500× to over 1 GB.
-- **CRC verified** on every entry by default.
-- **Symlinks in tar are not extracted** — on Windows they are an escape vector.
-- **Duplicate entry names** (including case-only differences, which Windows treats as identical) are resolved before extraction so two threads never write the same file.
+Windows only. The console handling, path rules and memory mapping are written
+directly against the Win32 API, so there is no portable build.
 
 ## Testing
 
-```bash
-.\run_tests.ps1     # 59 integration tests
-cargo test          # 9 unit tests
-.\run_bench.ps1     # benchmarks
+```powershell
+go test ./...          # 18 unit tests
+.\run_tests.ps1        # 66 integration tests
+.\run_bench.ps1        # comparative benchmark
 ```
 
-The integration suite compares **MD5 of every extracted file** against the source — not merely "the command exited 0". It covers archives produced by .NET, 7-Zip, and WinRAR; all four encryption schemes; corrupted archives; ZIP64 with 70 000 entries; multi-volume RAR; solid RAR; header-encrypted RAR; every command-line option; and each security property listed above.
+`go vet ./...` reports one diagnostic, on the memory-mapping call: turning the
+address the OS hands back into a slice needs a `uintptr` → `unsafe.Pointer`
+conversion that vet cannot verify. It is checked at runtime instead, and
+`go test -gcflags=all=-d=checkptr=1 ./...` passes. The reasoning is written out
+in [winapi_windows.go](winapi_windows.go).
 
-## Limitations
+## Safety
 
-- **Creates ZIP only.** No 7z, RAR, or tar creation. RAR compression is proprietary and cannot legally be reimplemented.
-- **Slower than 7-Zip on 7z and RAR** — see the benchmark table.
-- **No GUI**, no shell integration, no self-extracting archives.
-- **ZIP methods supported:** store, deflate, bzip2, zstd, xz. LZMA-in-zip and Deflate64 are reported as unsupported rather than mis-extracted.
+Fzip opens files it did not create, so the hostile cases are tested rather than
+assumed: path traversal, reserved Windows device names, paths past 260
+characters, zip bombs, corrupt central directories, and offsets crafted to index
+out of range. Each has a regression test in `run_tests.ps1`, sections C and I.
 
-## Build
+Encrypted entries are authenticated **before** decryption, so tampered data is
+rejected rather than decoded into garbage.
 
-```bash
-cargo build --release
+## Layout
+
 ```
-
-Produces `target\release\fzip.exe`, a single self-contained binary (~2.8 MB; the UnRAR and LZMA decoders are statically linked).
-
-## Website
-
-The source for [fzip.org](https://fzip.org/) is in `web/`, deployed on Vercel
-straight from this repository — see [WEBSITE.md](WEBSITE.md). It carries a
-machine-readable command reference at `/usage.md` and `/llms.txt`, so assistants
-can answer "how do I use this" correctly.
-
-## License
-
-Copyright (c) 2026 **Tcoder LLC**. MIT licensed — see [LICENSE](LICENSE).
-
-RAR support uses RARLAB's official UnRAR sources, which may not be used to create a RAR-compatible *archiver*; Fzip only decompresses RAR. Other dependencies are MIT and/or Apache-2.0.
-
-Day-to-day usage instructions: [GUIDE.md](GUIDE.md).
+main.go             entry point, format detection, the double-click pause
+cli.go              argument parsing, glob filters, help
+common.go           exit codes, formatting, DOS timestamps, progress bar
+safepath.go         zip-slip defence, device names, long paths
+crypto.go           WinZip AES-256/192/128 and legacy ZipCrypto
+zipread.go          parsing, decryption, parallel decompression
+zipwrite.go         parallel compression, ZIP64, AES-256
+winapi_windows.go   console, password prompt, memory mapping
+fzip_test.go        unit tests
+web/                the fzip.org site — see WEBSITE.md
+brand/              logo and icon sources
+```

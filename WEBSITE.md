@@ -6,7 +6,7 @@ external requests at all.
 
 ```
 vercel.json       deployment config — the whole setup lives here
-.vercelignore     keeps the Rust project out of the upload
+.vercelignore     keeps the Go project out of the upload
 web/              everything that gets served
   index.html
   usage.md        full command reference
@@ -27,7 +27,7 @@ the dashboard — `vercel.json` at the repository root already declares everythi
 
 | Setting | Value | Why |
 |---|---|---|
-| `outputDirectory` | `web` | The repository root is a Rust project; only `web/` is the site. |
+| `outputDirectory` | `web` | The repository root is a Go project; only `web/` is the site. |
 | `buildCommand` | `null` | There is nothing to build. Static files are served as they are. |
 | `installCommand` | `null` | No `package.json`, no dependencies. Skipping install removes any chance of Vercel trying to guess. |
 | `framework` | `null` | Stops framework auto-detection. |
@@ -60,8 +60,9 @@ declares `https://fzip.org/` as its canonical URL, in `<link rel="canonical">`,
 the Open Graph tags, `sitemap.xml` and the JSON-LD, so nothing else needs
 changing once the domain resolves.
 
-There is **one** build. The `--no-default-features` variant is no longer
-published.
+There is **one** build. Fzip 2.0 has no compile-time variants at all — the
+`--no-default-features` build that 1.x offered went away with the RAR support it
+existed to remove.
 
 ## The download
 
@@ -113,15 +114,17 @@ to it and the site is consistent — but it has two costs worth knowing:
   to the download section instead, because pointing it at a tag that holds a
   *different* build would be worse than a dead link.
 
-For the next release, tag it `v1.0.2` and publish a new release rather than
-editing this one. Every version then keeps its own permanent URL, and
-`latest/download/fzip.exe` still follows the newest automatically.
+From 2.0.0 onwards each version gets its own tag — `v2.0.0`, then `v2.0.1` and
+so on — published as a new release rather than by editing an existing one. Every
+version then keeps its own permanent URL, and `latest/download/fzip.exe` still
+follows the newest automatically.
 
 ### Publishing a new version
 
-1. `cargo build --release`
-2. Draft a **new** release on GitHub, tagged `vX.Y.Z`, and attach
-   `target/release/fzip.exe`. Do not edit an existing release — that is how 1.0.0
+1. `go build -trimpath -ldflags "-s -w" -o fzip.exe .` — commit first, so the
+   version stamp Go embeds records a clean commit rather than `+dirty`.
+2. Draft a **new** release on GitHub, tagged `vX.Y.Z`, and attach `fzip.exe`
+   from the repository root. Do not edit an existing release — that is how 1.0.0
    was lost. **The asset must keep the exact name `fzip.exe`**; the
    `latest/download/fzip.exe` URL resolves by filename, so renaming it breaks
    every existing link. Confirm GitHub marks the new release as **Latest**,
@@ -159,19 +162,19 @@ drop `/web/download/` out of `.gitignore`.
 
 ## Legacy: wiring the link to an external host
 
-The binary is deliberately **not** committed to this repository — a 2.8 MB
-executable in git history is dead weight, and every rebuild would add another
-copy. Pick one of the two routes below, then update the four places listed
-underneath.
+This section records the choice that was already made; the live setup is
+described above. The binary is deliberately **not** committed to this repository
+— a 2.5 MB executable in git history is dead weight, and every rebuild would add
+another copy.
 
 ### Route A — GitHub Releases (recommended)
 
 Releases give you a permanent URL per version, a download counter, and no repo
 bloat.
 
-1. Build: `cargo build --release`
-2. On GitHub: **Releases → Draft a new release**, tag `v1.0.0`, attach
-   `target/release/fzip.exe` renamed to `fzip-1.0.0-x64.exe`.
+1. Build: `go build -trimpath -ldflags "-s -w" -o fzip.exe .`
+2. On GitHub: **Releases → Draft a new release**, tag `vX.Y.Z`, attach
+   `fzip.exe`.
 3. Your download URL is then:
 
 ```

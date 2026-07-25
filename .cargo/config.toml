@@ -1,7 +1,0 @@
-# Control Flow Guard is a Windows exploit-mitigation feature: the compiler
-# records every legal indirect-call target and the OS checks calls against that
-# list at run time. Shipping without it is a missing hardening measure, and its
-# absence is one of the signals Defender's machine-learning models weigh when
-# deciding whether an unsigned binary looks trustworthy.
-[target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "control-flow-guard=yes"]

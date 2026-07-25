@@ -80,7 +80,8 @@ existing submission ID.
 > - Product: Fzip, a command-line archive tool for Windows
 > - Publisher: Tcoder LLC — <https://fzip.org/>
 > - Source: <https://github.com/xmetaads/Fzip> (public, MIT licence)
-> - Written in Rust; not packed, not obfuscated; section entropy 6.3
+> - Version 1.x was written in Rust; version 2.0 is written in Go. Neither is
+>   packed or obfuscated.
 > - Carries a full version resource naming the homepage and source repository, an
 >   application manifest (`asInvoker`), and is built with Control Flow Guard,
 >   ASLR, DEP and high-entropy ASLR
@@ -96,10 +97,11 @@ existing submission ID.
 > **What I am asking**
 >
 > 1. Please correct the verdict on the 1.0.1 hash above.
-> 2. I have published 1.0.2, SHA-256
->    `F5C8C66A891D8304845733363195467954F20525EBDB77FA4C7D9740BD9A1AA4`,
->    2,874,368 bytes, from the same source with only version metadata changed.
->    Please add it to the allow list so this release does not repeat the cycle.
+> 2. The current release is 2.0.0, SHA-256 `PLACEHOLDER_SHA256`,
+>    PLACEHOLDER_SIZE bytes. It is a complete rewrite — a different language, a
+>    different dependency set (none), and a smaller feature surface — so it
+>    shares no code with the file that was flagged. Please add it to the allow
+>    list so this release does not repeat the cycle.
 > 3. If there is a way for a small publisher to establish reputation ahead of a
 >    release rather than after users are blocked, I would be glad to use it.
 >

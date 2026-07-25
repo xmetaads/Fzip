@@ -1,6 +1,6 @@
 # Fzip — command reference
 
-Version 1.0.2 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
+Version 2.0.0 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
 
 Fzip is a command-line archive tool. It has no graphical interface: you type a
 command, it does the work and prints what happened. It decompresses every file
@@ -63,7 +63,7 @@ not to you, so output going "next to the archive" is the predictable choice.
 
 ```
 fzip x data.zip -o D:\output      choose the destination
-fzip x data.rar                   same command for every format
+fzip x data.zip -e                flatten: ignore the folder structure
 fzip x secret.zip -p MyPass123    password inline
 fzip x secret.zip -p              prompt for the password instead
 ```
@@ -167,25 +167,33 @@ if ($LASTEXITCODE -ge 2) { throw "fzip failed with exit code $LASTEXITCODE" }
 
 ## Formats
 
-**Reads:** zip, rar, 7z, tar, gz, bz2, xz, zst — and the combined forms
-`.tar.gz`, `.tgz`, `.tar.bz2`, `.tbz2`, `.tar.xz`, `.txz`, `.tar.zst`, `.tzst`,
-which are unwrapped in a single step rather than two.
+**Reads:** zip. **Writes:** zip, with optional AES-256.
 
-**Writes:** zip, with optional AES-256.
+That is the whole list. Version 1.x also read rar, 7z, tar, gz, bz2, xz and zst;
+version 2.0 dropped them. If you hand Fzip one of those it names the format and
+stops, rather than reporting a corrupt zip:
+
+```
+> fzip x archive.rar
+fzip: archive.rar is a RAR archive, and this version reads zip only
+```
+
+Within zip it handles deflate and stored entries, ZIP64, archives with more than
+65535 entries, and both UTF-8 and legacy CP437 entry names.
 
 Format is detected from the magic bytes at the start of the file, never from the
-extension, so an archive with the wrong name still opens correctly.
+extension, so a zip named `.rar` still opens correctly.
 
 **Encryption it can read:** AES-256, AES-192 and AES-128 (the WinZip AE-1 and
-AE-2 schemes), legacy ZipCrypto, encrypted 7z, and RAR archives with either
-encrypted data or encrypted headers.
+AE-2 schemes), and legacy ZipCrypto.
 
 **Encryption it writes:** AES-256 only. Fzip deliberately will not create legacy
 ZipCrypto — that cipher is broken — so asking for a password always gives you
 real encryption.
 
-**Not supported:** LZMA-in-zip and Deflate64. Both are reported clearly rather
-than mis-extracted.
+**Zip methods not supported:** BZip2, LZMA, Zstd, XZ and Deflate64 inside a zip.
+All are reported clearly rather than mis-extracted. Deflate and stored account
+for essentially every zip in circulation.
 
 ---
 
@@ -197,7 +205,7 @@ fzip t installer.zip
 fzip x installer.zip
 
 # Pull only the images out of a large archive
-fzip x photos.rar -i "*.jpg" -i "*.png" -o D:\Images
+fzip x photos.zip -i "*.jpg" -i "*.png" -o D:\Images
 
 # Unpack without the junk
 fzip x project.zip -x "*.tmp" -x "*.log"
@@ -223,30 +231,30 @@ fzip x huge.zip -t 4
 ## Performance
 
 A ZIP archive stores each file as an independent compressed block, so they can
-all be decompressed at once. Measured on a 20-thread desktop CPU with a 183.3 MB
-archive of 303 files, using `fzip t` so that disk writes do not distort the
-result:
+all be decompressed at once. Measured on a 20-thread laptop CPU (AMD Ryzen AI 9
+465) with a 171.7 MB archive of 360 files, using `fzip t` so that disk writes do
+not distort the result. Five runs at each worker count, best taken:
 
 | Workers | Time | Throughput | Versus one worker |
 |---|---|---|---|
-| 1 | 0.836 s | 219 MB/s | 1.00× |
-| 2 | 0.531 s | 345 MB/s | 1.57× |
-| 4 | 0.299 s | 614 MB/s | 2.80× |
-| 8 | 0.298 s | 616 MB/s | 2.81× |
-| 12 | 0.279 s | 657 MB/s | 2.99× |
-| 16 | 0.285 s | 643 MB/s | 2.93× |
-| 20 | 0.287 s | 639 MB/s | 2.91× |
+| 1 | 0.947 s | 181 MB/s | 1.00× |
+| 2 | 0.540 s | 318 MB/s | 1.76× |
+| 4 | 0.271 s | 633 MB/s | 3.50× |
+| 8 | 0.182 s | 944 MB/s | 5.22× |
+| 12 | 0.149 s | 1151 MB/s | 6.36× |
+| 20 | 0.132 s | 1304 MB/s | 7.20× |
 
-Three times the throughput of a single worker, levelling off around twelve
-because the archive only contains so much independent work.
+Seven times the throughput of a single worker, and still climbing at twenty
+because the archive holds 360 independent entries to share out.
 
-Extracting the same archive to an SSD takes about 0.80 s — roughly 229 MB/s end
-to end. Past four workers the drive sets the pace rather than the CPU.
+Extracting the same archive to an SSD takes about 0.70 s — roughly 245 MB/s end
+to end, against 119 MB/s on a single worker. Writing sets the pace there, not
+decompression.
 
-**Where this does not help:** a solid `.7z` or `.rar` archive is one continuous
-compressed stream, so it cannot be split across cores. Extracting those is
-single-threaded, and slower than a tool specialising in that format. Fzip's
-advantage is ZIP.
+**Where this does not help:** an archive holding one enormous entry has nothing
+to parallelise, and neither does extraction to slow storage. Fzip's advantage
+shows up with many entries and a fast disk, or with `fzip t`, which writes
+nothing at all.
 
 ---
 
@@ -258,7 +266,8 @@ Every item below is covered by an automated regression test.
   absolute roots cannot write outside the destination. Each blocked entry is
   reported by name rather than silently dropped.
 - **Zip bombs are refused.** An entry that expands past its declared size is
-  stopped, so a 451-byte archive cannot consume hundreds of megabytes.
+  stopped one byte over, so a 199 KB archive claiming 1 KB cannot quietly write
+  200 MB.
 - **Reserved device names are renamed.** An entry called `CON`, `NUL`, `LPT1` or
   `PRN.txt` becomes `_CON` and so on; files genuinely named after a device are
   nearly impossible to delete afterwards.
@@ -268,9 +277,11 @@ Every item below is covered by an automated regression test.
   than decoded into garbage.
 - **CRC is verified on every entry** by default.
 - **Memory stays flat.** Entries above 32 MB stream straight to disk; peak usage
-  is about 9 MB regardless of archive size.
-- **Symbolic and hard links inside tar archives are not extracted** — on Windows
-  they are an escape route.
+  is about 7 MB regardless of archive size. The exception is an encrypted entry,
+  whose authentication code covers the whole payload and so has to be held in
+  memory to be checked; `--max-memory` caps that.
+- **No third-party code.** Fzip depends on nothing outside the Go standard
+  library, so there is no supply chain to compromise.
 
 ---
 
@@ -280,16 +291,25 @@ Every item below is covered by an automated regression test.
 Get-FileHash fzip.exe -Algorithm SHA256
 ```
 
-Version 1.0.2:
+Version 2.0.0:
 
 ```
-SHA-256  F5C8C66A891D8304845733363195467954F20525EBDB77FA4C7D9740BD9A1AA4
-Size     2,874,368 bytes
+SHA-256  PLACEHOLDER_SHA256
+Size     PLACEHOLDER_SIZE bytes
 ```
 
-That hash identifies the published binary. Compiling the source yourself produces
-a functionally identical executable with a *different* hash, because Rust builds
-are not bit-for-bit reproducible — that is expected, not a sign of tampering.
+That hash identifies the published binary. Compiling the source yourself may
+produce a different hash — that is expected, not a sign of tampering.
+
+Fzip has **no third-party dependencies**, so building it yourself means compiling
+this repository against the Go standard library and nothing else. The executable
+also records where it came from:
+
+```powershell
+go version -m fzip.exe
+```
+
+That prints the module path and the exact commit the binary was built from.
 
 ### If Windows Defender blocks the download
 
@@ -301,8 +321,9 @@ Version 1.0.1 was blocked this way.
 The verdict attaches to a **specific file hash**, not to the program. We measured
 this: the published 1.0.1 file was blocked on every download, while the identical
 source rebuilt locally scanned clean, and one local build was detected and then
-scanned clean twenty minutes later without changing a byte. Building with or
-without RAR support made no difference in six trials.
+scanned clean twenty minutes later without changing a byte. Six builds across two
+different configurations made no difference. Changing implementation language did
+not either — that was measured too, on a minimal program in each.
 
 If it happens to you:
 

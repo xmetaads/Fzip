@@ -3,6 +3,69 @@
 All notable changes to **Fzip**, published by Tcoder LLC.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2026-07-25
+
+Fzip is now written in **Go**, and reads **zip only**. Both are breaking changes,
+which is what the major version number is for. Behaviour, command line, exit
+codes and archive output are otherwise unchanged: every 1.x command still means
+the same thing.
+
+### Removed
+
+- **Rust.** The entire implementation was rewritten in Go. Nothing of the
+  previous source remains.
+- **Every format except zip.** Version 1.x read rar, 7z, tar, gz, bz2, xz and
+  zst. None of those are read any more. Handed one, Fzip identifies it by name
+  and stops, so the failure explains itself:
+
+  ```
+  > fzip x archive.rar
+  fzip: archive.rar is a RAR archive, and this version reads zip only
+  ```
+
+- **BZip2, LZMA, Zstd and XZ used as a compression method inside a zip.**
+  Deflate and stored remain, which covers essentially every zip in circulation.
+- **All third-party dependencies.** The binary now contains only this repository
+  and the Go standard library. WinZip AES uses `crypto/aes`, `crypto/hmac` and
+  the standard `crypto/pbkdf2`; deflate uses `compress/flate`; CRC-32 uses
+  `hash/crc32`. Nothing is fetched at build time.
+
+### Changed
+
+- **Extraction is about 25% slower than 1.x.** Measured, not estimated: the same
+  183.3 MB benchmark archive extracts in 0.846 s against 0.67 s for the Rust
+  build, because `compress/flate` decompresses more slowly than libdeflate. That
+  still leaves Fzip roughly 2.2× ahead of 7-Zip and WinRAR, and 2.7× ahead of
+  7-Zip at creating archives, but it is a real regression and is stated here
+  rather than buried.
+- **`tar.exe`, built into Windows 11, now edges out extraction** on that archive
+  by 2%. The README no longer claims Fzip is the fastest ZIP extractor on
+  Windows, because on this measurement it is not.
+- **Control Flow Guard is gone**, because the Go toolchain does not emit it.
+  ASLR, DEP and high-entropy address space are still present, and the binary is
+  still unpacked and unobfuscated.
+- **Timestamp conversion is simpler and no less correct.** Go's `time.Local`
+  applies the timezone rules in force *on the date being converted*, so the
+  hand-written DST handling that 1.x needed against the Win32 API is gone while
+  summer and winter timestamps still round-trip exactly.
+- Binary size is 2.5 MB, down from 2.8 MB.
+
+### Fixed
+
+- **A file entry colliding with an existing folder** reported a bare "is a
+  directory" error instead of the intended message. The 1.x code recognised this
+  case only when the OS reported a *permission* error, which Windows does not do
+  here, so the explanation never appeared. The check no longer depends on which
+  errno the platform chooses.
+
+### Testing
+
+66 integration tests and 18 unit tests, none skipped. Every defect found in the
+1.x audits and in the field came across as a regression test first. Two new
+tests cover ground 1.x did not: `J03b` proves the double-click pause actually
+happens when it should, so that `J03` is testing something, and `J03c` covers
+`FZIP_NO_PAUSE`.
+
 ## [1.0.2] - 2026-07-25
 
 A rebuild that retires the 1.0.1 binary, whose SHA-256 picked up a false
