@@ -43,12 +43,12 @@ was verified on 2026-07-25 against Security Intelligence **1.455.339.0**.
 >
 > **About the file**
 >
-> - Product: Fzip 1.0.0, a command-line archive tool for Windows
+> - Product: Fzip 1.0.1, a command-line archive tool for Windows
 > - Publisher: Tcoder LLC — <https://fzip.org/>
 > - Source: <https://github.com/xmetaads/Fzip> (public, MIT licence)
 > - Download: <https://fzip.org/download/fzip.exe>
-> - SHA-256: `28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09`
-> - Size: 2,865,664 bytes
+> - SHA-256: `EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552`
+> - Size: 2,874,368 bytes
 > - Written in Rust; not packed, not obfuscated; section entropy 6.3
 > - Carries a full version resource, an application manifest (`asInvoker`), and
 >   is built with Control Flow Guard, ASLR, DEP and high-entropy ASLR

@@ -1,6 +1,6 @@
 # Fzip — command reference
 
-Version 1.0.0 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
+Version 1.0.1 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
 
 Fzip is a command-line archive tool. It has no graphical interface: you type a
 command, it does the work and prints what happened. It decompresses every file
@@ -120,6 +120,7 @@ are only ever read, never moved or deleted.
 | `--max-memory <n>` | RAM ceiling, e.g. `512M` or `2G`. Default `1G`. |
 | `--no-crc` | Skip CRC verification. Slightly faster, less safe. |
 | `--progress` | Force the progress bar even when output is redirected to a file. |
+| `--no-pause` | Never wait for a keypress at the end. Set it for installers and scripts; the environment variable `FZIP_NO_PAUSE` does the same. |
 | `-q` | Quiet: errors only. |
 | `-v` | Verbose: name every file as it is processed. |
 
@@ -279,18 +280,18 @@ Every item below is covered by an automated regression test.
 Get-FileHash fzip.exe -Algorithm SHA256
 ```
 
-Version 1.0.0:
+Version 1.0.1:
 
 ```
-SHA-256  28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09
-Size     2,865,664 bytes
+SHA-256  EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552
+Size     2,874,368 bytes
 ```
 
 That hash identifies the published binary. Compiling the source yourself produces
 a functionally identical executable with a *different* hash, because Rust builds
 are not bit-for-bit reproducible — that is expected, not a sign of tampering.
 
-Fzip 1.0.0 is not yet code-signed, so a freshly downloaded copy can draw a
+Fzip 1.0.1 is not yet code-signed, so a freshly downloaded copy can draw a
 machine-learning false positive from a scanner that has never encountered the
 file before. Verify the hash above, or build from source, before adding any
 scanner exclusion — and never disable real-time protection outright.

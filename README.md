@@ -64,7 +64,7 @@ Verify what you downloaded:
 
 ```powershell
 Get-FileHash fzip.exe -Algorithm SHA256
-# 28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09
+# EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552
 ```
 
 That hash identifies the published binary. Building from source yourself yields a functionally identical executable with a different hash, because Rust builds are not bit-for-bit reproducible.
@@ -106,6 +106,7 @@ fzip a <archive.zip> <files...>   create a zip
 | `--max-memory <n>` | RAM cap, e.g. `512M`, `2G` (default 1G) |
 | `--no-crc` | skip CRC verification |
 | `--progress` | force the progress bar even when redirected |
+| `--no-pause` | Never wait for a keypress at the end. Set it for installers and scripts; the environment variable `FZIP_NO_PAUSE` does the same. |
 | `-q` / `-v` | quiet / verbose |
 | `-V` | version |
 

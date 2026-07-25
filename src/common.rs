@@ -46,6 +46,45 @@ pub fn owns_console() -> bool {
     false
 }
 
+/// Whether there is a console window a person could actually be looking at.
+///
+/// An installer that launches fzip hidden still gets a console allocated, and
+/// that console still reports itself as a terminal — so owning it, or stdin
+/// being a tty, is not enough to conclude anyone is watching. The window
+/// itself being visible is. Without this check a hidden run would stop at
+/// "Press Enter to exit..." and wait forever, with no keyboard to answer it.
+#[cfg(windows)]
+pub fn console_is_visible() -> bool {
+    extern "system" {
+        fn GetConsoleWindow() -> isize;
+        fn IsWindowVisible(hwnd: isize) -> i32;
+        fn IsIconic(hwnd: isize) -> i32;
+    }
+    unsafe {
+        let hwnd = GetConsoleWindow();
+        if hwnd == 0 {
+            return false;
+        }
+        // Minimised still counts as visible: the user can restore it.
+        IsWindowVisible(hwnd) != 0 || IsIconic(hwnd) != 0
+    }
+}
+
+#[cfg(not(windows))]
+pub fn console_is_visible() -> bool {
+    true
+}
+
+/// Whether to hold the window open at the end so a double-click user can read
+/// the output. Every condition must hold, because getting this wrong means an
+/// unattended run hangs forever instead of finishing.
+pub fn should_pause(no_pause_flag: bool) -> bool {
+    if no_pause_flag || std::env::var_os("FZIP_NO_PAUSE").is_some() {
+        return false;
+    }
+    owns_console() && console_is_visible() && std::io::stdin().is_terminal()
+}
+
 // ---------------- time ----------------
 
 /// Local timezone offset from UTC in seconds.

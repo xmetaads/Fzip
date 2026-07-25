@@ -478,6 +478,124 @@ $same = ((Get-FileHash "$encSrc\huge.bin" -Algorithm MD5).Hash -eq
 Assert (($LASTEXITCODE -eq 0) -and $same -and ($peak -lt 120MB)) `
        "I05 150MB encrypted member: streams at $peakMB MB peak, round-trips intact"
 
+Write-Output "===== J. Field reports (regressions from real-world use) ====="
+
+# .NET's ZipArchive rewrites '\' to '/', so these need a zip built by hand.
+# Stored entries only, CRC left at zero — the tests below pass --no-crc.
+function New-RawZip($Path, [hashtable]$Entries, [bool]$SetDirAttr = $true) {
+  $ms = New-Object System.IO.MemoryStream
+  $bw = New-Object System.IO.BinaryWriter($ms)
+  $cd = New-Object System.Collections.ArrayList
+  foreach ($k in $Entries.Keys) {
+    $n = [System.Text.Encoding]::UTF8.GetBytes($k)
+    $d = [System.Text.Encoding]::UTF8.GetBytes([string]$Entries[$k])
+    $off = $ms.Position
+    $bw.Write([uint32]0x04034b50); $bw.Write([uint16]20); $bw.Write([uint16]0x0800)
+    $bw.Write([uint16]0); $bw.Write([uint16]0); $bw.Write([uint16]0)
+    $bw.Write([uint32]0); $bw.Write([uint32]$d.Length); $bw.Write([uint32]$d.Length)
+    $bw.Write([uint16]$n.Length); $bw.Write([uint16]0); $bw.Write($n)
+    if ($d.Length) { $bw.Write($d) }
+    [void]$cd.Add(@{ n=$n; len=$d.Length; off=$off; k=$k })
+  }
+  $cdStart = $ms.Position
+  foreach ($e in $cd) {
+    $isDir = $e.k -match '[\\/]$'
+    $attr = if ($isDir -and $SetDirAttr) { 0x10 } else { 0x20 }
+    $bw.Write([uint32]0x02014b50); $bw.Write([uint16]20); $bw.Write([uint16]20)
+    $bw.Write([uint16]0x0800); $bw.Write([uint16]0); $bw.Write([uint16]0); $bw.Write([uint16]0)
+    $bw.Write([uint32]0); $bw.Write([uint32]$e.len); $bw.Write([uint32]$e.len)
+    $bw.Write([uint16]$e.n.Length); $bw.Write([uint16]0); $bw.Write([uint16]0)
+    $bw.Write([uint16]0); $bw.Write([uint16]0); $bw.Write([uint32]$attr)
+    $bw.Write([uint32]$e.off); $bw.Write($e.n)
+  }
+  $cdSize = $ms.Position - $cdStart
+  $bw.Write([uint32]0x06054b50); $bw.Write([uint16]0); $bw.Write([uint16]0)
+  $bw.Write([uint16]$cd.Count); $bw.Write([uint16]$cd.Count)
+  $bw.Write([uint32]$cdSize); $bw.Write([uint32]$cdStart); $bw.Write([uint16]0)
+  $bw.Flush(); [System.IO.File]::WriteAllBytes($Path, $ms.ToArray())
+  $bw.Dispose(); $ms.Dispose()
+}
+
+# J01: directory entries written with a trailing backslash. The spec says '/',
+# but Windows producers write '\'. Treating one as a file made fzip try to
+# create a file over an existing directory: "Access is denied".
+# No DOS directory attribute here, so only the name can identify it.
+New-RawZip "$S\j1.zip" @{
+  'python\lib\site-packages\win32comext\' = ''
+  'python\lib\venv\scripts\'              = ''
+  'python\lib\readme.txt'                 = 'x'
+} $false
+& $FZIP x "$S\j1.zip" -o "$S\o_j1" --no-crc -q 2>$null
+Assert (($LASTEXITCODE -eq 0) -and
+        (Test-Path "$S\o_j1\python\lib\site-packages\win32comext") -and
+        (Test-Path "$S\o_j1\python\lib\venv\scripts")) `
+       "J01 directory entries ending in backslash are created as folders"
+
+# J02: a hidden run must finish. An installer launching fzip with no visible
+# window still gets a console, and fzip used to stop there at
+# "Press Enter to exit..." with no keyboard to answer it — hanging forever.
+$hidden = Start-Process $FZIP -ArgumentList "x","`"$S\j1.zip`"","-o","`"$S\o_j2`"","-q","--no-crc" `
+          -WindowStyle Hidden -PassThru
+$exited = $hidden.WaitForExit(15000)
+if (-not $exited) {
+  try { $hidden.Kill() } catch {}
+  Get-Process fzip -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Kill() } catch {} }
+}
+Assert ($exited -and $hidden.ExitCode -eq 0) "J02 hidden run exits instead of waiting for a keypress"
+
+# J03: --no-pause and FZIP_NO_PAUSE must both suppress the wait outright
+$np = Start-Process $FZIP -ArgumentList "x","`"$S\j1.zip`"","-o","`"$S\o_j3`"","-q","--no-crc","--no-pause" `
+      -WindowStyle Hidden -PassThru
+$npOk = $np.WaitForExit(15000)
+if (-not $npOk) { try { $np.Kill() } catch {} }
+Assert ($npOk -and $np.ExitCode -eq 0) "J03 --no-pause exits cleanly"
+
+# J04: cmd.exe and PowerShell hand wildcards through verbatim, so fzip must
+# expand them itself. Previously: "The filename, directory name, or volume
+# label syntax is incorrect. (os error 123)"
+New-Item -ItemType Directory -Force "$S\j4src\sub" | Out-Null
+"a" * 300 | Out-File "$S\j4src\one.txt"
+"b" * 300 | Out-File "$S\j4src\two.txt"
+"c" * 300 | Out-File "$S\j4src\sub\three.txt"
+& $FZIP a "$S\j4.zip" "$S\j4src\*" -y -q 2>$null
+$j4 = if (Test-Path "$S\j4.zip") { (& $FZIP l "$S\j4.zip" | Out-String) } else { "" }
+Assert (($LASTEXITCODE -eq 0) -and ($j4 -match 'one\.txt') -and ($j4 -match 'three\.txt')) `
+       "J04 wildcard input path is expanded, including nested folders"
+
+# J05: a pattern that matches nothing should say so, not produce an empty archive
+$msg = & $FZIP a "$S\j5.zip" "$S\j4src\*.nothing" -y 2>&1 | Out-String
+Assert (($LASTEXITCODE -ne 0) -and ($msg -match 'matched nothing')) `
+       "J05 a wildcard matching nothing is reported"
+
+# J06: re-installing over a previous version means overwriting read-only files.
+# --overwrite all now means it.
+New-RawZip "$S\j6.zip" @{ 'app.cfg' = 'NEWVERSION' }
+New-Item -ItemType Directory -Force "$S\o_j6" | Out-Null
+"OLDVERSION" | Out-File "$S\o_j6\app.cfg" -NoNewline -Encoding ascii
+Set-ItemProperty "$S\o_j6\app.cfg" -Name IsReadOnly -Value $true
+& $FZIP x "$S\j6.zip" -o "$S\o_j6" --overwrite all --no-crc -q 2>$null
+$j6 = if (Test-Path "$S\o_j6\app.cfg") { (Get-Content "$S\o_j6\app.cfg" -Raw).Trim() } else { "" }
+Set-ItemProperty "$S\o_j6\app.cfg" -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue
+Assert (($LASTEXITCODE -eq 0) -and ($j6 -eq "NEWVERSION")) `
+       "J06 --overwrite all replaces a read-only file"
+
+# J07: --overwrite skip must still respect a read-only file
+New-Item -ItemType Directory -Force "$S\o_j7" | Out-Null
+"KEEPME" | Out-File "$S\o_j7\app.cfg" -NoNewline -Encoding ascii
+Set-ItemProperty "$S\o_j7\app.cfg" -Name IsReadOnly -Value $true
+& $FZIP x "$S\j6.zip" -o "$S\o_j7" --overwrite skip --no-crc -q 2>$null
+$j7 = (Get-Content "$S\o_j7\app.cfg" -Raw).Trim()
+Set-ItemProperty "$S\o_j7\app.cfg" -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue
+Assert ($j7 -eq "KEEPME") "J07 --overwrite skip still leaves a read-only file alone"
+
+# J08: a file entry colliding with an existing directory is reported clearly
+# rather than reported as a bare permissions error
+New-RawZip "$S\j8.zip" @{ 'collide' = 'data' }
+New-Item -ItemType Directory -Force "$S\o_j8\collide" | Out-Null
+$msg8 = & $FZIP x "$S\j8.zip" -o "$S\o_j8" --no-crc 2>&1 | Out-String
+Assert ($msg8 -match 'folder of that name already exists') `
+       "J08 file-over-folder collision gives a readable message"
+
 Write-Output ""
 Write-Output "================================================================"
 Write-Output "TOTAL: $script:pass passed, $script:fail failed, $script:skip skipped"

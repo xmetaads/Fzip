@@ -230,7 +230,13 @@ pub fn parse(data: &[u8]) -> Result<Vec<Entry>, String> {
         }
 
         let name = decode_name(name_raw, flags & (1 << 11) != 0);
-        let is_dir = name.ends_with('/') || ((ext_attrs & 0x10) != 0 && usize_ == 0);
+        // A directory entry may end in either separator. The spec says `/`, but
+        // plenty of Windows producers write `\`, and treating one of those as a
+        // file makes fzip try to create a file over an existing directory —
+        // which fails with "Access is denied" and loses the whole subtree.
+        let is_dir = name.ends_with('/')
+            || name.ends_with('\\')
+            || ((ext_attrs & 0x10) != 0 && usize_ == 0);
 
         entries.push(Entry {
             name, method, flags, crc, csize, usize_, local_off,
@@ -820,9 +826,42 @@ fn crc_error(e: &Entry, got: u32) -> String {
 }
 
 fn create_file(path: &PathBuf, e: &Entry) -> Result<fs::File, String> {
-    fs::File::create(path).map_err(|err| {
-        format!("{}: cannot create file: {}", e.name, err)
-    })
+    match fs::File::create(path) {
+        Ok(f) => Ok(f),
+        Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+            // Two ordinary situations land here, and both are recoverable.
+            //
+            // The target is a directory: an archive can name the same path as
+            // both a folder and a file. Report it rather than destroying the
+            // folder and everything under it.
+            if path.is_dir() {
+                return Err(format!(
+                    "{}: a folder of that name already exists here",
+                    e.name
+                ));
+            }
+            // The target is read-only, which is what re-installing over a
+            // previous version looks like. Clear the flag and retry once;
+            // `--overwrite all` means overwrite.
+            if let Ok(md) = fs::metadata(path) {
+                let mut perms = md.permissions();
+                if perms.readonly() {
+                    #[allow(clippy::permissions_set_readonly_false)]
+                    perms.set_readonly(false);
+                    if fs::set_permissions(path, perms).is_ok() {
+                        if let Ok(f) = fs::File::create(path) {
+                            return Ok(f);
+                        }
+                    }
+                }
+            }
+            Err(format!(
+                "{}: cannot create file: {} - the file may be open in another program",
+                e.name, err
+            ))
+        }
+        Err(err) => Err(format!("{}: cannot create file: {}", e.name, err)),
+    }
 }
 
 fn set_mtime(f: &fs::File, e: &Entry) {

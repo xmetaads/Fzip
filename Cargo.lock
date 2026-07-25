@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "fzip"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "aes 0.8.4",
  "bzip2",

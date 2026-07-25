@@ -3,6 +3,48 @@
 All notable changes to **Fzip**, published by Tcoder LLC.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] — 2026-07-25
+
+Five defects reported from real deployments, all reproduced and fixed. Anyone
+driving Fzip from an installer or a script should take this release.
+
+### Fixed
+
+- **A hidden run hung forever.** An installer launching `fzip.exe` with no
+  visible window still gets a console allocated, and Fzip owned it — so it
+  reached "Press Enter to exit..." and waited for a keyboard that was not there.
+  The process never exited and the installer sat at 100% indefinitely. Fzip now
+  checks whether the console window is actually *visible* before pausing;
+  owning a console and stdin reporting as a terminal are not enough to conclude
+  someone is watching.
+- **`--no-pause` and `FZIP_NO_PAUSE`** added so automation can rule the pause
+  out explicitly rather than relying on detection.
+- **Directory entries ending in a backslash were extracted as files.** The
+  specification says `/`, but plenty of Windows producers write `\`. Fzip
+  treated `python\lib\venv\scripts\` as a file, tried to create a file over the
+  existing folder, and failed with *"cannot create file: Access is denied
+  (os error 5)"* — losing whole subtrees of an unpacked application.
+- **Wildcards on the command line failed.** `fzip a out.zip src\*` returned
+  *"The filename, directory name, or volume label syntax is incorrect (os error
+  123)"*. Unix shells expand wildcards before the program sees them; cmd.exe and
+  PowerShell do not, so a Windows tool has to do it itself. Fzip now expands
+  `*` and `?` in the final path component, and says so plainly when a pattern
+  matches nothing.
+- **`--overwrite all` could not replace a read-only file**, which is exactly
+  what installing over a previous version looks like. The read-only attribute is
+  now cleared and the write retried. `--overwrite skip` still leaves such files
+  alone, as it should.
+- **A file entry colliding with an existing folder** reported a bare permissions
+  error. It now says a folder of that name already exists, and never deletes the
+  folder to make room.
+
+### Testing
+
+Eight regression tests added, one per defect plus the cases that must keep
+working around them. The suite is now 75 integration tests and 14 unit tests.
+The archives these tests need are built byte by byte, because .NET's own zip
+writer silently rewrites `\` to `/` and would hide the very bug being tested.
+
 ## [1.0.0] — 2026-07-25
 
 First public release.

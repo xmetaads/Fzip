@@ -101,6 +101,9 @@ pub struct Options {
     pub level: u8,
     pub max_memory: u64,
     pub assume_yes: bool,
+    /// Never wait for a keypress at the end. For installers and scripts that
+    /// run fzip with no window and no keyboard to answer with.
+    pub no_pause: bool,
 }
 
 impl Options {
@@ -166,6 +169,7 @@ pub fn parse() -> Result<Options, ParseError> {
     let mut level = 5u8;
     let mut max_memory = 1u64 << 30;
     let mut assume_yes = false;
+    let mut no_pause = false;
     let mut prompt_password = false;
 
     let mut i = 0;
@@ -222,6 +226,7 @@ pub fn parse() -> Result<Options, ParseError> {
             "-v" | "--verbose" => verbose = true,
             "--no-crc" => check_crc = false,
             "--progress" => force_progress = true,
+            "--no-pause" => no_pause = true,
             "--max-memory" => {
                 let v = next(&mut i, "--max-memory")?;
                 max_memory = parse_size(&v)
@@ -306,6 +311,7 @@ pub fn parse() -> Result<Options, ParseError> {
     Ok(Options {
         mode, archive, inputs, out_dir, password, threads, check_crc, quiet, verbose,
         force_progress, overwrite, filter, flatten, level, max_memory, assume_yes,
+        no_pause,
     })
 }
 
@@ -349,7 +355,7 @@ pub fn print_help() {
     println!("WRITES: zip, optionally encrypted with AES-256");
     println!();
     println!("OPTIONS:");
-    let rows: [(&str, &str); 15] = [
+    let rows: [(&str, &str); 16] = [
         ("-o <dir>", "output folder (default: archive name)"),
         ("-p <pass>", "password; prompts securely if omitted"),
         ("-t <n>", "CPU threads (default: all)"),
@@ -362,6 +368,7 @@ pub fn print_help() {
         ("--max-memory <n>", "RAM cap, e.g. 512M or 2G (default 1G)"),
         ("--no-crc", "skip CRC verification"),
         ("--progress", "force the progress bar even when redirected"),
+        ("--no-pause", "never wait for a keypress (installers, scripts)"),
         ("-q", "quiet: errors only"),
         ("-v", "verbose: list every file"),
         ("-V", "show version"),

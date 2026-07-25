@@ -1,6 +1,6 @@
 [package]
 name = "fzip"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["Tcoder LLC"]
 description = "Fzip - fast portable archive tool for Windows. Extracts zip/rar/7z/tar/gz/bz2/xz/zst, creates zip."

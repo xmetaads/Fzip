@@ -68,7 +68,7 @@ LookupPrivilegeValueW      present   absent
 removes all four privilege imports and 682 KB of unreachable C++:
 
 ```bash
-cargo build --release                        # 2,865,664 bytes, reads RAR
+cargo build --release                        # 2,874,368 bytes, reads RAR
 cargo build --release --no-default-features  # no RAR, none of those imports, 682 KB smaller
 ```
 
@@ -101,10 +101,10 @@ at First Sight enabled:
 
 | Test | Result |
 |---|---|
-| Download the released binary over HTTPS | 2,865,664 bytes, hash matches |
+| Download the released binary over HTTPS | 2,874,368 bytes, hash matches |
 | Apply a Mark-of-the-Web stream, as a browser download does | — |
 | `MpCmdRun.exe -Scan -ScanType 3` | **found no threats** |
-| Execute it | runs normally, prints `Fzip 1.0.0` |
+| Execute it | runs normally, prints `Fzip 1.0.1` |
 | New entries in `Get-MpThreatDetection` | **none** |
 
 **The detection no longer reproduces**, so there is no diagnostic data to
@@ -145,11 +145,11 @@ corrected within a few days.
 Get-FileHash fzip.exe -Algorithm SHA256
 ```
 
-Release 1.0.0:
+Release 1.0.1:
 
 | Build | SHA256 | Size |
 |---|---|---|
-| Published release | `28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09` | 2,865,664 |
+| Published release | `EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552` | 2,874,368 |
 
 > That hash identifies **the published binary**. Rust builds are not
 > bit-for-bit reproducible — the compiler embeds absolute paths and other

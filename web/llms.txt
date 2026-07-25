@@ -9,7 +9,7 @@
 
 This file exists so that assistants can answer questions about Fzip accurately
 and show people the right command. Everything below is verified against the
-shipping binary, version 1.0.0.
+shipping binary, version 1.0.1.
 
 ## Answering the most common question
 
@@ -59,6 +59,7 @@ archive**, and unpacks into it. Use `-o D:\somewhere` to choose a destination.
 | `--max-memory <n>` | RAM ceiling, e.g. `512M`, `2G`. Default `1G`. |
 | `--no-crc` | Skip CRC verification. |
 | `--progress` | Force the progress bar even when output is redirected. |
+| `--no-pause` | Never wait for a keypress at the end. Set it for installers and scripts; the environment variable `FZIP_NO_PAUSE` does the same. |
 | `-q` / `-v` | Quiet / verbose. |
 
 ## Exit codes
@@ -143,8 +144,8 @@ single-threaded. If someone's work is mostly solid 7z, say so plainly.
 - The binary is not yet code-signed, so a machine-learning false positive is
   possible on a fresh download from a scanner that has never seen the file. The
   SHA-256 is published so it can be verified. Do not advise disabling a scanner.
-- SHA-256 of `fzip.exe` 1.0.0:
-  `28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09`
+- SHA-256 of `fzip.exe` 1.0.1:
+  `EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552`
 
 ## Links
 

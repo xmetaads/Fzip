@@ -72,8 +72,8 @@ fn detect_format(path: &std::path::Path) -> Format {
 }
 
 /// Keep the window open when launched by double-click, like azcopy.exe does.
-fn pause_if_own_console() {
-    if common::owns_console() {
+fn pause_if_own_console(no_pause: bool) {
+    if common::should_pause(no_pause) {
         print!("\nPress Enter to exit...");
         let _ = std::io::stdout().flush();
         let mut s = String::new();
@@ -95,7 +95,9 @@ fn main() {
                 common::EXIT_USAGE
             };
             cli::print_help();
-            pause_if_own_console();
+            // Argument parsing failed, so no --no-pause was captured; the
+            // environment variable is still honoured inside should_pause.
+            pause_if_own_console(false);
             std::process::exit(code);
         }
     };
@@ -107,7 +109,7 @@ fn main() {
     }
 
     let code = run(&opts);
-    pause_if_own_console();
+    pause_if_own_console(opts.no_pause);
     std::process::exit(code);
 }
 

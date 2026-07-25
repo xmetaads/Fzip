@@ -13,6 +13,11 @@
       "permanent": false
     },
     {
+      "source": "/download/fzip-1.0.1-x64.exe",
+      "destination": "https://github.com/xmetaads/Fzip/releases/download/v1.0.1/fzip.exe",
+      "permanent": false
+    },
+    {
       "source": "/download/fzip-1.0.0-x64.exe",
       "destination": "https://github.com/xmetaads/Fzip/releases/download/Fzip/fzip.exe",
       "permanent": false
@@ -47,9 +52,9 @@
     {
       "source": "/download/(.*)",
       "headers": [
-        { "key": "X-Fzip-Version", "value": "1.0.0" },
-        { "key": "X-Fzip-SHA256", "value": "28157C577F91D141897259D5C68CA1F92A9C06F557B14189E96899DB48550E09" },
-        { "key": "X-Fzip-Size", "value": "2865664" },
+        { "key": "X-Fzip-Version", "value": "1.0.1" },
+        { "key": "X-Fzip-SHA256", "value": "EA01A7B0041541B43CABD747594A4A93073A8113523F6CE45844E09894C30552" },
+        { "key": "X-Fzip-Size", "value": "2874368" },
         { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }
       ]
     },

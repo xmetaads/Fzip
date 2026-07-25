@@ -95,6 +95,66 @@ fn archive_name(rel: &Path, is_dir: bool) -> String {
 /// The ZIP name-length field is 16 bits, so a longer name cannot be recorded.
 const MAX_NAME_LEN: usize = 0xFFFF;
 
+/// Expand `*` and `?` in the last component of each input path.
+///
+/// Unix shells glob before the program ever sees the arguments. cmd.exe and
+/// PowerShell do not — they hand `photos\*` through verbatim, and passing that
+/// to the filesystem fails with "The filename, directory name, or volume label
+/// syntax is incorrect". A Windows command-line tool has to do this itself.
+fn expand_wildcards(inputs: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
+    let mut out = Vec::with_capacity(inputs.len());
+
+    for input in inputs {
+        let text = input.to_string_lossy();
+        if !text.contains('*') && !text.contains('?') {
+            out.push(input.clone());
+            continue;
+        }
+
+        let pattern = input
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .ok_or_else(|| format!("cannot understand the pattern {}", input.display()))?;
+        let dir = match input.parent() {
+            Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+            _ => PathBuf::from("."),
+        };
+
+        // Only the final component may hold a wildcard. `a\*\b.txt` would need
+        // a recursive walk with different semantics; say so rather than
+        // silently matching nothing.
+        if dir.to_string_lossy().contains('*') || dir.to_string_lossy().contains('?') {
+            return Err(format!(
+                "{}: wildcards are only supported in the last part of a path",
+                input.display()
+            ));
+        }
+
+        let glob = globset::GlobBuilder::new(&pattern)
+            .case_insensitive(true)
+            .literal_separator(true)
+            .build()
+            .map_err(|e| format!("bad pattern '{}': {}", pattern, e))?
+            .compile_matcher();
+
+        let entries = fs::read_dir(&dir)
+            .map_err(|e| format!("cannot read {}: {}", dir.display(), e))?;
+
+        let mut found = 0usize;
+        for entry in entries.flatten() {
+            if glob.is_match(entry.file_name().to_string_lossy().as_ref()) {
+                out.push(entry.path());
+                found += 1;
+            }
+        }
+        if found == 0 {
+            return Err(format!("{} matched nothing", input.display()));
+        }
+    }
+
+    Ok(out)
+}
+
 fn collect(inputs: &[PathBuf], opts: &Options) -> Result<Vec<Source>, String> {
     let mut out = Vec::new();
     // Never swallow the archive we are currently writing. It exists on disk the
@@ -108,7 +168,9 @@ fn collect(inputs: &[PathBuf], opts: &Options) -> Result<Vec<Source>, String> {
         }
     };
 
-    for input in inputs {
+    let inputs = expand_wildcards(inputs)?;
+
+    for input in &inputs {
         let md = fs::metadata(input)
             .map_err(|e| format!("cannot read {}: {}", input.display(), e))?;
 
