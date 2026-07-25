@@ -150,4 +150,4 @@ single-threaded. If someone's work is mostly solid 7z, say so plainly.
 
 - Site: https://fzip.org/
 - Full command reference in Markdown: https://fzip.org/usage.md
-- Download: https://github.com/xmetaads/Fzip/releases/latest/download/fzip.exe
+- Download: https://fzip.org/download/fzip.exe

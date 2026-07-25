@@ -1,7 +1,7 @@
 /target
 
-# Built binaries belong in GitHub Releases, not in the repository.
-# web/README.md explains how the download link is wired to a release asset.
+# The working copy at the repo root is a build output; the released binary
+# lives in web/download/ and IS committed, because fzip.org serves it directly.
+# See WEBSITE.md for why the download is not on GitHub Releases.
 /fzip.exe
 /fzip-norar.exe
-/web/download/
