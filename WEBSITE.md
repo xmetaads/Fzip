@@ -90,13 +90,14 @@ The redirect is deliberately `"permanent": false` — a 308 would be cached by
 browsers and would pin people to whichever release happened to be current the
 first time they visited.
 
-The redirect response also carries the build identity, so a script can check the
-current version without downloading 2.8 MB:
-
-```powershell
-(Invoke-WebRequest https://fzip.org/download/fzip.exe -MaximumRedirection 0 `
-   -SkipHttpErrorCheck).Headers | Where-Object Key -like "X-Fzip-*"
-```
+`vercel.json` declares `X-Fzip-Version`, `X-Fzip-SHA256` and `X-Fzip-Size` on
+`/download/(.*)`, but **they are not actually served**: a redirect short-circuits
+before the headers block is applied, and every path under `/download/` is a
+redirect. Measured — the response carries a `Location` and nothing else. The
+block is kept because it is where the current build identity is recorded for
+maintainers, not because a client can read it. To check the published version
+from a script, read `llms.txt`, which is served normally and carries the same
+hash.
 
 ### One tag per version
 
