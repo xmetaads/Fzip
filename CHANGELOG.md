@@ -5,13 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [1.3.0] - 2026-07-25
 
-Back to **Rust**, still **zip only**. This is the build intended for code
-signing, so the work went into what a signature actually vouches for: nothing
-unnecessary linked in, nothing imported that is never called, and no path where
-hostile input reaches the disk before it is checked.
+Back to **Rust**, still **zip only**. The work went into what anyone vouching for
+this binary would have to stand behind: nothing unnecessary linked in, nothing
+imported that is never called, and no path where hostile input reaches the disk
+before it is checked.
 
 The version number returns to the 1.x line because that is where the Rust
 implementation left off. 2.0.0 was the Go build; it is superseded.
+
+**Microsoft has analysed this build and allow-listed it.** The
+`Trojan:Win32/Wacatac.B!ml` detection that affected 1.0.1 is corrected, and
+SmartScreen passes the file. The binary is not code-signed; it is vouched for by
+that review, the published SHA-256, and source anyone can rebuild.
 
 ### Fixed
 
@@ -50,7 +55,7 @@ implementation left off. 2.0.0 was the Go build; it is superseded.
   the binary now imports no privilege API at all.
 - **1.54 MB, down from 2.87 MB** in 1.0.2.
 
-### Verified before signing
+### Verified before release
 
 | Check | Result |
 |---|---|
@@ -72,11 +77,16 @@ dependency this release just removed. Windows' own `tar.exe` and WinRAR's
 
 ### Note on the antivirus question
 
-Signing is the fix, and it is the publisher's to apply. Nothing in this release
-changes the earlier measurement: the `Wacatac.B!ml` verdict followed a **file
-hash**, not the language, not a dependency, and not Mark-of-the-Web. See
-[ANTIVIRUS.md](ANTIVIRUS.md). What this release does is remove every reason an
-analyst could have for hesitating over what is inside the file.
+The measurements stand: the `Wacatac.B!ml` verdict followed a **file hash**, not
+the language, not a dependency, and not Mark-of-the-Web. See
+[ANTIVIRUS.md](ANTIVIRUS.md). What settled it was submitting the file to
+Microsoft for analysis — and what made that submission easy to accept was having
+nothing left in the binary for an analyst to hesitate over: no privilege APIs,
+no third-party C++, five imported DLLs, and 1/69 on VirusTotal with Microsoft as
+the only engine flagging it.
+
+The allow-list entry covers **this hash**. Any future release starts again from
+zero prevalence, so submit each one before announcing it.
 
 ## [2.0.0] - 2026-07-25
 

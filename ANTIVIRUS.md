@@ -1,5 +1,33 @@
 # Why antivirus software flags Fzip, and what was measured
 
+> ## Resolved
+>
+> **Microsoft analysed Fzip 1.3.0, removed the false detection, allow-listed the
+> file, and SmartScreen now passes it.** The hash covered is
+> `3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C`.
+>
+> What actually worked was submitting the binary to Microsoft Security
+> Intelligence as a false positive, with the measurements below attached. Not a
+> code signature — Fzip is still unsigned. Not a change of implementation
+> language. Not removing a dependency. Those were all tried first, and the
+> document below records what each one did and did not do.
+>
+> Two things that made the submission easy to accept, and are worth repeating on
+> any future release:
+>
+> - **VirusTotal read 1/69**, with Microsoft the only engine flagging the file.
+>   That single line is a stronger argument than anything measured locally, and
+>   it belongs near the top of a submission.
+> - **There was nothing left in the binary to hesitate over**: no privilege APIs,
+>   no third-party C++, five imported Windows DLLs, entropy 6.33, not packed, a
+>   full version resource naming the publisher and a public repository that
+>   rebuilds it.
+>
+> **The entry covers that one hash.** Every future build starts again at zero
+> prevalence, so submit each release to <https://aka.ms/wdsi> *before* announcing
+> it rather than waiting for a user to be blocked.
+
+
 Users report `Trojan:Win32/Wacatac.B!ml` and `Trojan:Win32/Wacapew.C!ml` from
 Microsoft Defender. This document reports what was actually tested, not what
 sounds plausible.
@@ -16,11 +44,10 @@ sounds plausible.
 > removing UnRAR, whose unused privilege imports had been the leading suspect;
 > builds with and without it were equally clean across six trials.
 >
-> **1.3.0 is code-signed, which is the fix.** What the rewrite and the format
-> cull did contribute is a binary with nothing left to explain: no privilege
-> APIs, no third-party C++, half the size, and an import table of five Windows
-> system DLLs. That does not make a model's verdict impossible, but it removes
-> every reason an analyst reviewing it could have for hesitating.
+> What settled it was a false-positive submission to Microsoft, not any change
+> to the binary — see **Resolved** at the top. The rewrite and the format cull
+> still mattered, just not in the way expected: they left a binary with nothing
+> to explain, which is what makes a submission quick to accept.
 
 ## Summary of findings
 

@@ -120,11 +120,23 @@ so on — published as a new release rather than by editing an existing one. Eve
 version then keeps its own permanent URL, and `latest/download/fzip.exe` still
 follows the newest automatically.
 
-### Code signing
+### Clearing the release with Microsoft
+
+Fzip ships **unsigned**. What stands in for a signature is a false-positive
+submission: 1.3.0 was sent to <https://aka.ms/wdsi>, analysed, allow-listed, and
+SmartScreen passes it. The template is in
+[MICROSOFT-REPLY.md](MICROSOFT-REPLY.md).
+
+**That entry covers one hash.** Every new build starts at zero prevalence, so
+submit each release and give it a few days *before* announcing it, rather than
+waiting for a user to be blocked.
+
+### If you ever start code signing
 
 Sign **before** computing the hash and before uploading. Signing rewrites the
 file, so a binary signed after publication no longer matches what the site says,
-and anyone who checked the hash first is left holding a mismatch.
+anyone who checked the hash first is left holding a mismatch, and the allow-list
+entry earned for the unsigned build does not carry over to the signed one.
 
 ```powershell
 signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
@@ -143,7 +155,6 @@ update the site.
 ### Publishing a new version
 
 1. `cargo build --release`. The binary lands at `target\release\fzip.exe`.
-   Sign it now, per the section above.
 2. Draft a **new** release on GitHub, tagged `vX.Y.Z`, and attach
    `target\release\fzip.exe`. Do not edit an existing release — that is how 1.0.0
    was lost. **The asset must keep the exact name `fzip.exe`**; the

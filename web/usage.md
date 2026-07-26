@@ -301,41 +301,41 @@ SHA-256  3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C
 Size     1,612,288 bytes
 ```
 
-The binary is also **code-signed by Tcoder LLC**, so Windows can name the
-publisher before you run it:
+This exact file was submitted to Microsoft Security Intelligence, analysed, and
+**allow-listed**. Microsoft Defender no longer flags it and SmartScreen passes
+it. Checking the hash is therefore worth doing: it tells you that you have the
+reviewed build and not something else.
 
-```powershell
-Get-AuthenticodeSignature fzip.exe | Format-List Status, SignerCertificate
-```
-
-`Status` should read `Valid`. That is a stronger check than the hash, because it
-does not depend on you having got the hash from an uncompromised page.
+Fzip is **not code-signed**. What vouches for it is that review, the published
+SHA-256, and source you can read and rebuild — not a certificate. That is said
+plainly here because claiming a signature you cannot verify would be worse than
+claiming nothing.
 
 Compiling the source yourself produces a functionally identical executable with
 a *different* hash, because Rust builds are not bit-for-bit reproducible — that
 is expected, not a sign of tampering. Every dependency is pinned in
 `Cargo.lock`.
 
-### If Windows Defender blocks the download
+### If a scanner still flags it
 
-Signing largely settles this, but a brand-new certificate carries no reputation
-of its own at first, and Defender's cloud model can return a malicious verdict
-on an unfamiliar file — usually `Trojan:Win32/Wacatac.B!ml`. Version 1.0.1 was
-blocked this way while unsigned.
+Earlier releases drew `Trojan:Win32/Wacatac.B!ml` from Microsoft Defender. That
+was a machine-learning false positive, and it has been corrected for this build.
 
-The verdict attaches to a **specific file hash**, not to the program. We measured
-this: the published 1.0.1 file was blocked on every download, while the identical
-source rebuilt locally scanned clean, and one local build was detected and then
-scanned clean twenty minutes later without changing a byte. Six builds across two
-different configurations made no difference. Changing implementation language did
-not either — that was measured too, on a minimal program in each.
+It is worth knowing what the investigation found, because the same thing can
+happen to any small unsigned tool. The verdict attached to a **specific file
+hash**, not to the program: the published 1.0.1 file was blocked on every
+download while the identical source rebuilt locally scanned clean, and one local
+build was detected and then scanned clean twenty minutes later without a byte
+changing. Six builds across two configurations made no difference, and neither
+did changing implementation language — both were measured.
 
-If it happens to you:
+If some other scanner flags it:
 
 1. Check the SHA-256 above. If it matches, you have the file we published.
-2. Report it to Microsoft as a false positive at <https://aka.ms/wdsi>. This is
-   what actually gets the verdict corrected, and it helps everyone after you.
-3. Only then decide about an exclusion, scoped to the single file.
+2. Report it to that vendor as a false positive. For Microsoft the address is
+   <https://aka.ms/wdsi>; that is what actually gets a verdict corrected, and it
+   helps everyone after you.
+3. Only then consider an exclusion, scoped to the single file.
 
 Never turn off real-time protection to run an archive tool. If the hash does not
 match, do not run the file at all — tell us instead.

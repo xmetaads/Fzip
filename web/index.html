@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fzip — parallel command-line archive tool for Windows</title>
-<meta name="description" content="Fzip is a command-line zip tool for Windows that decompresses every file in an archive at once, one per CPU core: 2,040 MB/s verifying, 318 MB/s extracting to disk. One portable .exe, written in Rust, code-signed by Tcoder LLC. Reads and writes zip, with AES-256. MIT licence.">
+<meta name="description" content="Fzip is a command-line zip tool for Windows that decompresses every file in an archive at once, one per CPU core: 2,040 MB/s verifying, 318 MB/s extracting to disk. One portable .exe, written in Rust, reviewed and allow-listed by Microsoft. Reads and writes zip, with AES-256. Published by Tcoder LLC, MIT licence.">
 <meta name="author" content="Tcoder LLC">
 <meta name="theme-color" content="#FAFBFD">
 <link rel="canonical" href="https://fzip.org/">
@@ -734,7 +734,7 @@ fzip x "%~1" -q
             <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>CRC on every entry</b> by default, hardware-accelerated so it costs almost nothing.</span></li>
             <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Nothing privileged in the import table.</b> No <code>AdjustTokenPrivileges</code>, no process injection, no registry writing. Five system DLLs, and the C runtime is linked in rather than imported, so there is no Visual C++ Redistributable to install.</span></li>
             <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Hardened binary.</b> Control Flow Guard, ASLR, DEP and high-entropy address space, with a full application manifest. Section entropy 6.31 &mdash; ordinary compiled code, never packed or obfuscated.</span></li>
-            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Code-signed by Tcoder LLC</b>, with a timestamp, so the signature keeps validating after the certificate expires. Windows names the publisher before you run it.</span></li>
+            <li><svg class="ico ico-good" viewBox="0 0 24 24" role="img" aria-label="Handled"><use href="#i-check"/></svg><span><b>Reviewed by Microsoft.</b> This build was submitted to Microsoft Security Intelligence, analysed, and allow-listed; SmartScreen passes it. Earlier releases drew a machine-learning false positive, and <a href="https://github.com/xmetaads/Fzip/blob/main/ANTIVIRUS.md">what was measured</a> is published rather than hidden.</span></li>
           </ul>
         </div>
       </div>
@@ -769,11 +769,12 @@ fzip x "%~1" -q
       <h3>Check it before you run it</h3>
       <pre style="margin-top:var(--s3)"><span class="p">PS&gt;</span> Get-FileHash fzip.exe -Algorithm SHA256</pre>
       <p style="margin-top:var(--s4)">
-        That hash identifies this published binary. It is also
-        <b>signed by Tcoder LLC</b>, so Windows can tell you who published it before you
-        run it &mdash; right-click, Properties, Digital Signatures, or:
+        That hash identifies this published binary, and it is the same one Microsoft
+        analysed and allow-listed &mdash; so it is worth checking rather than skipping.
+        Fzip is <b>not code-signed</b>: the file is vouched for by that review and by
+        its published source, not by a certificate. That is stated plainly here because
+        a claim of a signature you cannot verify is worse than no claim at all.
       </p>
-      <pre style="margin-top:var(--s4)"><span class="p">PS&gt;</span> Get-AuthenticodeSignature fzip.exe | Format-List Status, SignerCertificate</pre>
       <p style="margin-top:var(--s4)">
         Compiling the source yourself gives a functionally identical executable with a
         different hash, because Rust builds are not bit-for-bit reproducible &mdash;

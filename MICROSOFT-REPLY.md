@@ -1,5 +1,24 @@
 # Reply to Microsoft — false positive case
 
+> ## Closed — the submission worked
+>
+> Microsoft analysed Fzip 1.3.0, removed the detection, allow-listed the file,
+> and SmartScreen now passes it. Hash covered:
+> `3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C`.
+>
+> Everything below is kept as the working template for the **next** release,
+> because the allow-list entry covers one hash and a new build starts again at
+> zero prevalence. Submit each release before announcing it; change the version,
+> hash, size and definition version, and re-check the character count.
+>
+> Two things that made this submission land, worth repeating:
+>
+> 1. **Choose "Incorrectly detected as malware/malicious"** — the second radio.
+>    The form opens on "Malware/malicious", which reports your own file *as*
+>    malware.
+> 2. **Lead with the VirusTotal ratio.** 1/69, Microsoft the only engine
+>    flagging, is a stronger argument than any local measurement.
+
 ## Submitting through the WDSI form
 
 <https://www.microsoft.com/wdsi/filesubmission> → **Submit a file for malware
@@ -48,12 +67,17 @@ It reproduces from the public repository with "cargo build --release". I can sup
 Please correct the verdict on this hash.
 ```
 
-### Sign before submitting
+### If you ever start code-signing
 
-The hash above is the **unsigned** build. Authenticode rewrites the file, so the
-signed binary you actually distribute has a different hash, and an allow-list
-entry for this one does not cover it. Sign first, re-run `update_hash.ps1`, and
-submit the file you are going to ship. Otherwise this has to be done twice.
+Fzip 1.3.0 ships unsigned and allow-listed. Signing is still worth doing one
+day — reputation then accrues to the certificate rather than to each individual
+hash, so releases stop starting from zero.
+
+But be aware of the order. Authenticode rewrites the file, so a signed build has
+a **different hash**, and the allow-list entry earned for the unsigned one does
+not carry over. Sign first, re-run `update_hash.ps1`, submit the signed file,
+and only then publish. Signing an already-published build silently invalidates
+both the hash on the site and the allow-list entry.
 
 ---
 

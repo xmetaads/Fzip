@@ -37,8 +37,11 @@ if ($sig.Status -eq 'Valid') {
   $subject = $sig.SignerCertificate.Subject
   Write-Output "Signed : $($sig.Status) - $subject"
 } else {
-  Write-Output "Signed : NO ($($sig.Status))"
-  Write-Warning "This binary is not signed. If you intend to publish it signed, sign it FIRST, then re-run this script - signing changes the hash."
+  # Fzip ships unsigned on purpose - a false-positive submission to Microsoft
+  # stands in for a certificate, and the site says so. This is a note, not a
+  # warning, so that a normal release does not print a scary line every time.
+  Write-Output "Signed : no (expected - Fzip ships unsigned; see MICROSOFT-REPLY.md)"
+  Write-Output "         If that ever changes: sign FIRST, then re-run this script."
 }
 Write-Output ""
 

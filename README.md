@@ -1,6 +1,6 @@
 # Fzip
 
-**Published by Tcoder LLC.** MIT licensed. Code-signed.
+**Published by Tcoder LLC.** MIT licensed. Reviewed and allow-listed by Microsoft.
 
 A single-file, no-install zip tool for Windows. Portable in the spirit of
 Microsoft's `azcopy.exe` — one self-contained `.exe` you copy anywhere and drive
@@ -77,8 +77,9 @@ than reporting a broken zip:
 fzip: archive.rar is a RAR archive, and this version reads zip only
 ```
 
-If you need those formats, keep a tool that has them. 1.3 is the first
-code-signed release; see [CHANGELOG.md](CHANGELOG.md) for what it fixed.
+If you need those formats, keep a tool that has them. See
+[CHANGELOG.md](CHANGELOG.md) for what 1.3 fixed — including a zip bomb that
+could reach the disk before being caught.
 
 ## Install
 
@@ -88,22 +89,25 @@ There is no installer. Download `fzip.exe` and run it. It needs no runtime, no
 DLLs and no registry entries — the C runtime is linked into the executable, so
 there is no Visual C++ Redistributable to install first.
 
-Check what you downloaded. The signature is the better test, because it does not
-depend on you having read the hash from an uncompromised page:
+Check what you downloaded:
 
 ```powershell
-Get-AuthenticodeSignature fzip.exe | Format-List Status, SignerCertificate
 Get-FileHash fzip.exe -Algorithm SHA256
 # 3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C
 ```
 
-`Status` should read `Valid` and the signer should be Tcoder LLC.
+That is the exact build Microsoft analysed and allow-listed. Fzip is **not
+code-signed** — the file is vouched for by that review, the published hash and
+the readable source, not by a certificate. Saying so is deliberate: claiming a
+signature that does not exist would be worse than claiming nothing.
 
-> **Seeing an antivirus warning such as `Wacatac.B!ml`?**
-> [ANTIVIRUS.md](ANTIVIRUS.md) documents what was measured rather than assumed:
-> the verdict followed a **file hash**, not the code, not the implementation
-> language (a minimal Rust binary and a minimal Go binary both scan clean), and
-> not any single dependency. Signing is the durable fix and 1.3 is signed.
+> **Antivirus history.** Earlier releases drew `Trojan:Win32/Wacatac.B!ml` from
+> Microsoft Defender. It was a machine-learning false positive, submitted to
+> Microsoft and corrected. [ANTIVIRUS.md](ANTIVIRUS.md) records what was
+> measured rather than assumed: the verdict followed a **file hash**, not the
+> code, not the implementation language (a minimal Rust binary and a minimal Go
+> binary both scanned clean), and not any single dependency. It is kept because
+> the same thing can happen to any small, unsigned, low-prevalence tool.
 
 ## Usage
 
@@ -173,7 +177,7 @@ rejected rather than decoded into garbage.
 
 ### What is in the binary
 
-Checked before signing, and worth re-checking on every release:
+Checked before release, and worth re-checking on every one:
 
 | Check | Result |
 |---|---|
