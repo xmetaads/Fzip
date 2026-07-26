@@ -81,7 +81,7 @@ bandwidth at all.
 | Path | Goes to |
 |---|---|
 | `/download/fzip.exe` | the newest release, always |
-| `/download/fzip-1.3.0-x64.exe` | the `v1.3.0` tag specifically, so a pinned link never breaks |
+| `/download/fzip-1.3.0-x64.exe` | the `Fzip` tag, which is where 1.3.0 was uploaded |
 | `/download/fzip-1.0.2-x64.exe` | `/#download` — superseded |
 | `/download/fzip-1.0.1-x64.exe` | `/#download` — that build is withdrawn |
 | `/download/fzip-1.0.0-x64.exe` | `/#download` — that build no longer exists |
@@ -115,10 +115,15 @@ to it and the site is consistent — but it has two costs worth knowing:
   to the download section instead, because pointing it at a tag that holds a
   *different* build would be worse than a dead link.
 
-From 1.3.0 onwards each version gets its own tag — `v1.3.0`, then `v1.3.1` and
-so on — published as a new release rather than by editing an existing one. Every
-version then keeps its own permanent URL, and `latest/download/fzip.exe` still
-follows the newest automatically.
+1.3.0 was also published into the `Fzip` tag rather than one of its own, so the
+same two costs apply to it: 1.0.1 is gone from that tag, and
+`/download/fzip-1.3.0-x64.exe` points at a tag whose contents will change again
+on the next upload.
+
+**For the next release, tag it `v1.3.1`** and publish a new release rather than
+replacing the asset in `Fzip`. Every version then keeps a permanent URL that
+means one thing forever, and `latest/download/fzip.exe` still follows the newest
+automatically. The pinned redirects only earn their keep once that happens.
 
 ### Clearing the release with Microsoft
 
