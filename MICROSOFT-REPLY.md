@@ -19,6 +19,63 @@
 > 2. **Lead with the VirusTotal ratio.** 1/69, Microsoft the only engine
 >    flagging, is a stronger argument than any local measurement.
 
+## Open: `fzipw.exe` (1.4.0 release)
+
+VirusTotal reads **1/70**, Microsoft only, `Trojan:Win32/Wacatac.B!ml`. The
+companion `fzip.exe` is already allow-listed, so only this file is outstanding.
+
+Worth knowing before you submit: with definition **1.455.367.0**, Mark-of-the-Web
+applied and cloud protection on Advanced, this machine scans the file **clean**.
+The detection shows in VirusTotal rather than locally. That inconsistency is not
+a problem for the submission — it is the argument, and it says so below.
+
+| Field | Value |
+|---|---|
+| Category | **Incorrectly detected as malware/malicious** (second radio) |
+| Detection name | `Trojan:Win32/Wacatac.B!ml` |
+| Definition version | `1.455.367.0` |
+
+Paste into **Additional information** (1,869 of 1,900 characters):
+
+```
+This is fzipw.exe, the windowless build of Fzip, an open-source command-line zip tool for Windows published by Tcoder LLC under the MIT licence.
+
+Site: https://fzip.org/
+Source: https://github.com/xmetaads/Fzip
+File: fzipw.exe 1.4.0, 1,613,312 bytes
+SHA-256: 25eb5ae409bc6c2a52dd9353e36717e073bcd9cd233851a51b87213e90d20d2f
+
+Microsoft is the only engine flagging it: VirusTotal scores 1/70.
+
+You have already reviewed and allow-listed its companion, fzip.exe, SHA-256 3fb3b422a400c8df95904b488dcb7b4277d04e757be9d6ea4d0a261dc2ca7a8c. These two are the same program built twice. The only difference is the PE subsystem field: CONSOLE for fzip.exe, WINDOWS for fzipw.exe, so that an MSI custom action does not flash a console window. This is the python.exe / pythonw.exe convention. Verified, not assumed: archives written by either are byte-for-byte identical, and each reads the other's output.
+
+I can see why a model scores this one worse than the file you cleared: no console, unpacks archives, writes files - the shape of a dropper. The intent is that an installer can call it without a black window appearing on screen.
+
+On this machine, Defender 1.455.367.0 with Mark-of-the-Web applied and cloud protection on Advanced scans the file clean. The detection appears in VirusTotal rather than locally, which is the same pattern I reported for 1.0.1: the verdict follows a file hash, not the code.
+
+About the binary:
+- Rust. Not packed, not obfuscated.
+- Control Flow Guard, ASLR, DEP and high-entropy ASLR all enabled.
+- Imports only kernel32, ntdll, user32, bcryptprimitives, dbghelp.
+- No privilege APIs, no process injection, no registry writes, no network calls.
+- Full version resource naming publisher, homepage and repository; asInvoker manifest.
+
+Please correct the verdict on this hash and add it to the allow list alongside fzip.exe.
+```
+
+### Tested before submitting
+
+Do not submit a binary you have not exercised — an analyst who finds a real fault
+in it is entitled to leave the detection alone. The published `fzipw.exe` was run
+through 32 acceptance checks against the file served from `fzip.org`, not a local
+build: identity and version resource, Control Flow Guard / ASLR / DEP /
+high-entropy ASLR, no privileged imports, no `VCRUNTIME140.dll` dependency,
+create / extract / list / test, AES-256 including a 7-Zip interop read, exit
+codes 7 and 2 on the failure paths, zip-slip refused with the safe entry still
+extracted, reserved device names renamed, a zip bomb declaring 1 KB and holding
+120 MB refused, byte-identical archives with `fzip.exe` in both directions, and —
+the point of the file — zero `conhost` windows created while it ran.
+
 ## Submitting through the WDSI form
 
 <https://www.microsoft.com/wdsi/filesubmission> → **Submit a file for malware
