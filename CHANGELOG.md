@@ -3,18 +3,31 @@
 All notable changes to **Fzip**, published by Tcoder LLC.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
-## [1.3.0] — second binary added, 2026-07-26
+## [1.4.0] - 2026-07-26
 
 **`fzip.exe` is unchanged and was not rebuilt.** It is the same file published on
 2026-07-25, SHA-256 `3FB3B422…C2CA7A8C` — the one Microsoft analysed and
-allow-listed. Rebuilding it would mint a new hash and throw that away for
-nothing, because nothing about it needed to change. This release adds a *file*,
-not a version.
+allow-listed. That clearance follows the exact bytes, so recompiling it merely to
+bump a version number would have discarded it for nothing.
 
-Both binaries report 1.3.0 and are interchangeable. Verified rather than assumed:
-an archive written by either is byte-for-byte identical, each reads the other's
-output exactly, and AES-256 round-trips across them with wrong passwords still
-rejected.
+Which means **`fzip.exe -V` still prints 1.3.0 in the 1.4.0 release**. That looks
+like a packaging mistake and is not one; it is the whole point. The release adds
+a file rather than changing one. Only `fzipw.exe` is new, so only `fzipw.exe`
+needs a fresh submission to Microsoft.
+
+The two are safe to ship together because they are the same program, verified
+rather than assumed. The source difference is `mod` becoming `pub mod`, `fn main`
+becoming `pub fn run_cli` returning an `i32`, and `process::exit` moving out to
+the binary wrapper — no logic at all. Measured against the published binary:
+archives written by either are byte-for-byte identical, each reads the other's
+output exactly, AES-256 round-trips across them, and a wrong password is still
+refused with exit code 2.
+
+One consequence worth knowing: the published `fzip.exe` predates the help text
+that names `fzipw.exe`, so `fzip -h` does not mention it. The website carries
+that guidance instead, which is where someone hitting a flashing console window
+looks anyway. Restoring it to the help would cost the allow-list entry, which is
+not a trade worth making for a discoverability nicety.
 
 Adds **`fzipw.exe`**, a second executable for installers and scheduled tasks. It
 is the same program with one field changed in the PE header — subsystem

@@ -1,6 +1,6 @@
 # Fzip — command reference
 
-Version 1.3.0 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
+Release 1.4.0 · Windows 10 and 11, 64-bit · Published by Tcoder LLC · MIT licence
 
 Fzip is a command-line zip tool. It has no graphical interface: you type a
 command, it does the work and prints what happened. It decompresses every file
@@ -346,13 +346,13 @@ Every item below is covered by an automated regression test.
 Get-FileHash fzip.exe -Algorithm SHA256
 ```
 
-Version 1.3.0:
+Release 1.4.0:
 
 ```
 fzip.exe   SHA-256  3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C
-           Size     1,612,288 bytes
+           Size     1,612,288 bytes   (reports version 1.3.0 - see below)
 
-fzipw.exe  SHA-256  1D10DBCE996E48E0D67CAF752D323391F230ECAB43523E26B1BD5748DB115286
+fzipw.exe  SHA-256  25EB5AE409BC6C2A52DD9353E36717E073BCD9CD233851A51B87213E90D20D2F
            Size     1,613,312 bytes
 ```
 
