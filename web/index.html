@@ -36,8 +36,8 @@
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "File archiver",
       "operatingSystem": "Windows 10, Windows 11 (64-bit)",
-      "softwareVersion": "1.3.0",
-      "fileSize": "1612288",
+      "softwareVersion": "1.4.0",
+      "fileSize": "1613824",
       "downloadUrl": "https://fzip.org/download/fzip.exe",
       "installUrl": "https://fzip.org/#download",
       "softwareHelp": "https://fzip.org/usage.md",
@@ -55,8 +55,29 @@
         "Streams entries above 32 MB so memory stays flat",
         "Blocks path traversal, renames reserved Windows device names",
         "Verifies CRC on every entry",
-        "Exit codes: 0 ok, 1 warning, 2 error, 7 bad command line"
+        "Exit codes: 0 ok, 1 warning, 2 error, 7 bad command line",
+        "Ships a second build, fzipw.exe, with no console, so an MSI custom action or service never flashes a window"
       ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://fzip.org/#appw",
+      "name": "Fzip (fzipw.exe)",
+      "alternateName": "fzipw.exe",
+      "applicationCategory": "UtilitiesApplication",
+      "applicationSubCategory": "File archiver",
+      "operatingSystem": "Windows 10, Windows 11 (64-bit)",
+      "softwareVersion": "1.4.0",
+      "fileSize": "1613312",
+      "downloadUrl": "https://fzip.org/download/fzipw.exe",
+      "softwareHelp": "https://fzip.org/usage.md",
+      "programmingLanguage": "Rust",
+      "license": "https://opensource.org/licenses/MIT",
+      "author": { "@type": "Organization", "name": "Tcoder LLC", "url": "https://fzip.org/" },
+      "publisher": { "@type": "Organization", "name": "Tcoder LLC" },
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "isVariantOf": { "@id": "https://fzip.org/#app" },
+      "description": "The windowless build of Fzip, for MSI custom actions, WiX installers, Windows services and scheduled tasks. Identical to fzip.exe in options, exit codes and output archives; the only difference is the PE subsystem field, so Windows never allocates a console and no window can flash. It prints nothing unless output is redirected, and PowerShell does not wait for it unless you use Start-Process -Wait, cmd /c, or a pipe."
     },
     {
       "@type": "HowTo",
@@ -106,8 +127,18 @@
         },
         {
           "@type": "Question",
+          "name": "A console window flashes when my installer runs Fzip. How do I stop it?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Use fzipw.exe instead of fzip.exe. It is the same program with no console, so Windows never creates a window for it — the convention Windows itself uses for python.exe and pythonw.exe. Download it from https://fzip.org/download/fzipw.exe. Two things to know: it prints nothing unless you redirect output, and PowerShell does not wait for it, so use Start-Process -Wait -PassThru, cmd /c, or pipe it to Out-Null. MSI custom actions, Task Scheduler and .NET Process.WaitForExit wait correctly by themselves. If you write the WiX script yourself, WixQuietExec in WixUtilExtension also suppresses the window and needs no change on our side." }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between fzip.exe and fzipw.exe?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The same program, built twice, differing only in the PE subsystem field. fzip.exe has a console: you see the progress bar and errors, double-clicking shows the help screen, and drag-and-drop works. fzipw.exe has none: no window can flash, which is what installers need, but it shows nothing to a person running it by hand. Take fzip.exe unless you are writing an installer, a service or a scheduled task." }
+        },
+        {
+          "@type": "Question",
           "name": "Does Fzip need to be installed?",
-          "acceptedAnswer": { "@type": "Answer", "text": "No. It is a single 1.54 MB executable with no installer, no runtime and no registry entries. Copy fzip.exe anywhere and run it. Add its folder to PATH to call it as fzip from any directory." }
+          "acceptedAnswer": { "@type": "Answer", "text": "No. It is a single 1.54 MB executable with no installer, no runtime and no registry entries. Copy fzip.exe anywhere and run it. Add its folder to PATH to call it as fzip from any directory. A second build, fzipw.exe, is provided for installers and services: identical except that it has no console, so no window can flash when an MSI custom action runs it." }
         }
       ]
     }
@@ -435,7 +466,7 @@ footer a{color:var(--brand)}
     <div class="hero-grid">
       <div class="reveal">
         <svg class="hero-mark" viewBox="0 0 64 64" role="img" aria-label="Fzip"><use href="#logo"/></svg>
-        <span class="pill">Version 1.3.0 &middot; Windows 10 &amp; 11 &middot; MIT licence</span>
+        <span class="pill">Version 1.4.0 &middot; Windows 10 &amp; 11 &middot; MIT licence</span>
         <h1>Unzip at <span class="u">2,040&nbsp;MB/s</span></h1>
         <p class="lede">
           A command-line zip tool for Windows that decompresses every file in an
@@ -675,7 +706,7 @@ fzip x "%~1" -q
         <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-box"/></svg></span><div class="v">0</div><div class="k">Privileged API imports</div></div>
         <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cpu"/></svg></span><div class="v">7.5 MB</div><div class="k">Peak RAM, any size</div></div>
         <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span><div class="v">AES-256</div><div class="k">Zip encryption</div></div>
-        <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shield"/></svg></span><div class="v">1.54 MB</div><div class="k">One file, no installer</div></div>
+        <div class="tile"><span class="tile-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shield"/></svg></span><div class="v">2</div><div class="k">Builds: console and quiet</div></div>
       </div>
     </div>
   </section>
@@ -744,36 +775,105 @@ fzip x "%~1" -q
   <!-- ═══ DOWNLOAD ═══ -->
   <section id="download" class="wrap">
     <p class="eyebrow reveal">Download</p>
-    <h2 class="h reveal">One file. Nothing to install.</h2>
+    <h2 class="h reveal">Two files. Take the one that fits.</h2>
     <p class="lede reveal" style="margin-bottom:var(--s8)">
-      No runtime, no DLLs, no registry entries. Put it anywhere and run it.
+      The same program, built twice. They differ by a single field in the executable
+      header &mdash; whether Windows gives the process a console. That one flag decides
+      whether you can see what happened, or whether a black window flashes on your
+      users' screens. No runtime, no DLLs, no registry entries either way.
     </p>
 
     <div class="card reveal">
       <div class="dlcard">
         <div style="display:grid;gap:var(--s3)">
-          <h3 style="font-size:var(--step-1)">fzip.exe &middot; version 1.3.0</h3>
-          <p style="font-size:var(--step--1);color:var(--fg-mute)">
-            Windows 10 and 11, 64-bit. 1,613,824 bytes. Reads and creates zip,
-            with AES-256.
+          <h3 style="font-size:var(--step-1)">
+            <svg viewBox="0 0 24 24" aria-hidden="true" style="width:1em;height:1em;vertical-align:-.1em;margin-right:.35em;color:var(--brand)"><use href="#i-terminal"/></svg>fzip.exe
+          </h3>
+          <p style="font-size:var(--step--1);color:var(--fg-dim)">
+            <b>For people.</b> Take this one unless you are writing an installer.
           </p>
-          <div class="hash"><b>SHA-256</b>3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C</div>
+          <p style="font-size:var(--step--1);color:var(--fg-mute)">
+            Has a console, so you see the progress bar, the summary and any error.
+            Double-click it and the help screen appears; drag a <code>.zip</code> onto
+            it and it unpacks beside the archive. Windows 10 and 11, 64-bit.
+            1,613,824 bytes.
+          </p>
+          <div class="hash"><b>SHA-256</b>F9ED71C6F04FB44C7BBCC54BBC543AC40E919ECEB3A921B0825ECC91CB81FF4D</div>
         </div>
         <a class="btn" href="/download/fzip.exe" download style="white-space:nowrap">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg> Download &middot; 1.54 MB
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg> fzip.exe &middot; 1.54 MB
         </a>
       </div>
     </div>
 
+    <div class="card reveal" style="margin-top:var(--s5)">
+      <div class="dlcard">
+        <div style="display:grid;gap:var(--s3)">
+          <h3 style="font-size:var(--step-1)">
+            <svg viewBox="0 0 24 24" aria-hidden="true" style="width:1em;height:1em;vertical-align:-.1em;margin-right:.35em;color:var(--brand)"><use href="#i-box"/></svg>fzipw.exe
+          </h3>
+          <p style="font-size:var(--step--1);color:var(--fg-dim)">
+            <b>For installers.</b> MSI custom actions, WiX, services, scheduled tasks.
+          </p>
+          <p style="font-size:var(--step--1);color:var(--fg-mute)">
+            No console is ever allocated, so <b>no window can flash</b> &mdash; the
+            complaint that made this file exist. Same options, same exit codes, same
+            archives. It prints nothing unless you redirect, because there is nowhere
+            for output to go. Windows 10 and 11, 64-bit. 1,613,312 bytes.
+          </p>
+          <div class="hash"><b>SHA-256</b>25EB5AE409BC6C2A52DD9353E36717E073BCD9CD233851A51B87213E90D20D2F</div>
+        </div>
+        <a class="btn ghost" href="/download/fzipw.exe" download style="white-space:nowrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg> fzipw.exe &middot; 1.54 MB
+        </a>
+      </div>
+    </div>
+
+    <div class="note reveal" style="margin-top:var(--s6);border-left-color:var(--brand)">
+      <h3>Which one, and the catch with the quiet one</h3>
+      <div class="scroller">
+        <table style="min-width:0">
+          <thead><tr><th scope="col">Launched by</th><th scope="col">fzip.exe</th><th scope="col">fzipw.exe</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">A person, in a terminal</th><td>output, progress bar</td><td>nothing visible</td></tr>
+            <tr><th scope="row">Double-click in Explorer</th><td>help screen, then waits</td><td>nothing at all</td></tr>
+            <tr><th scope="row">MSI custom action, service</th><td><b>console flashes</b></td><td>silent, always</td></tr>
+            <tr><th scope="row">Exit codes</th><td>yes</td><td>yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:var(--s5)">
+        <b>PowerShell does not wait for <code>fzipw.exe</code>.</b> Measured:
+        <code>&amp; fzipw x big.zip -o out</code> returned after 9&nbsp;ms having extracted
+        nothing, and <code>$LASTEXITCODE</code> meant nothing. That is inherent to a
+        process with no console, not something the program can fix from the inside. Ask
+        for the wait and it behaves:
+      </p>
+      <pre style="margin-top:var(--s3)"><span class="p">PS&gt;</span> Start-Process fzipw -ArgumentList x,a.zip,-o,out <span class="a">-Wait -PassThru</span>
+<span class="p">PS&gt;</span> fzipw x a.zip -o out <span class="a">| Out-Null</span>
+<span class="p">PS&gt;</span> <span class="a">cmd /c</span> fzipw x a.zip -o out</pre>
+      <p style="margin-top:var(--s4)">
+        MSI custom actions, Task Scheduler and .NET's <code>Process.WaitForExit</code>
+        all wait correctly on their own &mdash; they hold the process handle. The
+        caveat only bites when you call it from a shell.
+      </p>
+      <p style="margin-top:var(--s4)">
+        <b>If you write the WiX yourself you may need neither file.</b>
+        <code>WixQuietExec</code>, in <code>WixUtilExtension</code>, runs a console
+        program with <code>CREATE_NO_WINDOW</code> and no window appears.
+        <code>fzipw.exe</code> is for when you do not control the caller.
+      </p>
+    </div>
+
     <div class="note reveal" style="margin-top:var(--s6);border-left-color:var(--ok)">
       <h3>Check it before you run it</h3>
-      <pre style="margin-top:var(--s3)"><span class="p">PS&gt;</span> Get-FileHash fzip.exe -Algorithm SHA256</pre>
+      <pre style="margin-top:var(--s3)"><span class="p">PS&gt;</span> Get-FileHash fzip.exe  -Algorithm SHA256
+<span class="p">PS&gt;</span> Get-FileHash fzipw.exe -Algorithm SHA256</pre>
       <p style="margin-top:var(--s4)">
-        That hash identifies this published binary, and it is the same one Microsoft
-        analysed and allow-listed &mdash; so it is worth checking rather than skipping.
-        Fzip is <b>not code-signed</b>: the file is vouched for by that review and by
-        its published source, not by a certificate. That is stated plainly here because
-        a claim of a signature you cannot verify is worse than no claim at all.
+        Each hash above identifies one published binary. Fzip is <b>not code-signed</b>:
+        the files are vouched for by those hashes and by source you can read and
+        rebuild, not by a certificate. That is stated plainly because a claim of a
+        signature you cannot verify is worse than no claim at all.
       </p>
       <p style="margin-top:var(--s4)">
         Compiling the source yourself gives a functionally identical executable with a
@@ -802,7 +902,7 @@ fzip x "%~1" -q
 
 <footer>
   <div class="wrap">
-    <span class="mono">Fzip 1.3.0 &middot; written in Rust</span>
+    <span class="mono">Fzip 1.4.0 &middot; written in Rust</span>
     <span>Published by <span class="mono">Tcoder LLC</span> &middot; MIT licence</span>
     <span><a href="/usage.md">Command reference</a> &middot; <a href="/llms.txt">llms.txt</a></span>
     <span style="margin-left:auto" class="mono">fzip.org</span>

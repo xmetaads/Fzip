@@ -78,9 +78,14 @@ the file; the page they are on never navigates, so the address bar never leaves
 `fzip.org`. Meanwhile GitHub serves the bytes, so the download costs us no
 bandwidth at all.
 
+Two binaries ship, so there are two of everything:
+
 | Path | Goes to |
 |---|---|
-| `/download/fzip.exe` | the newest release, always |
+| `/download/fzip.exe` | the newest release, always — the console build |
+| `/download/fzipw.exe` | the newest release, always — the windowless build |
+| `/download/fzip-1.4.0-x64.exe` | the `v1.4.0` tag specifically |
+| `/download/fzipw-1.4.0-x64.exe` | the `v1.4.0` tag specifically |
 | `/download/fzip-1.3.0-x64.exe` | the `Fzip` tag, which is where 1.3.0 was uploaded |
 | `/download/fzip-1.0.2-x64.exe` | `/#download` — superseded |
 | `/download/fzip-1.0.1-x64.exe` | `/#download` — that build is withdrawn |
@@ -160,9 +165,10 @@ update the site.
 ### Publishing a new version
 
 1. `cargo build --release`. The binary lands at `target\release\fzip.exe`.
-2. Draft a **new** release on GitHub, tagged `vX.Y.Z`, and attach
-   `target\release\fzip.exe`. Do not edit an existing release — that is how 1.0.0
-   was lost. **The asset must keep the exact name `fzip.exe`**; the
+2. Draft a **new** release on GitHub, tagged `vX.Y.Z`, and attach **both**
+   `target\release\fzip.exe` and `target\release\fzipw.exe`. Forgetting the
+   second one leaves `/download/fzipw.exe` returning 404 while the site
+   advertises it. Do not edit an existing release — that is how 1.0.0 was lost. **The asset must keep the exact name `fzip.exe`**; the
    `latest/download/fzip.exe` URL resolves by filename, so renaming it breaks
    every existing link. Confirm GitHub marks the new release as **Latest**,
    because that is what `latest/download/` follows.
