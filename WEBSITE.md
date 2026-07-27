@@ -84,9 +84,8 @@ Two binaries ship, so there are two of everything:
 |---|---|
 | `/download/fzip.exe` | the newest release, always — the console build |
 | `/download/fzipw.exe` | the newest release, always — the windowless build |
-| `/download/fzip-1.4.0-x64.exe` | the `v1.4.0` tag specifically |
-| `/download/fzipw-1.4.0-x64.exe` | the `v1.4.0` tag specifically |
-| `/download/fzip-1.3.0-x64.exe` | the `Fzip` tag, which is where 1.3.0 was uploaded |
+| `/download/fzip-1.3.0-x64.exe` | the `Fzip` tag, where both 1.3.0 binaries live |
+| `/download/fzipw-1.3.0-x64.exe` | the `Fzip` tag |
 | `/download/fzip-1.0.2-x64.exe` | `/#download` — superseded |
 | `/download/fzip-1.0.1-x64.exe` | `/#download` — that build is withdrawn |
 | `/download/fzip-1.0.0-x64.exe` | `/#download` — that build no longer exists |

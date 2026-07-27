@@ -3,7 +3,18 @@
 All notable changes to **Fzip**, published by Tcoder LLC.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
-## [1.4.0] - 2026-07-26
+## [1.3.0] — second binary added, 2026-07-26
+
+**`fzip.exe` is unchanged and was not rebuilt.** It is the same file published on
+2026-07-25, SHA-256 `3FB3B422…C2CA7A8C` — the one Microsoft analysed and
+allow-listed. Rebuilding it would mint a new hash and throw that away for
+nothing, because nothing about it needed to change. This release adds a *file*,
+not a version.
+
+Both binaries report 1.3.0 and are interchangeable. Verified rather than assumed:
+an archive written by either is byte-for-byte identical, each reads the other's
+output exactly, and AES-256 round-trips across them with wrong passwords still
+rejected.
 
 Adds **`fzipw.exe`**, a second executable for installers and scheduled tasks. It
 is the same program with one field changed in the PE header — subsystem
@@ -71,11 +82,11 @@ caller.
 
 ### Note on the Microsoft allow-list
 
-**The allow-list entry Microsoft granted covers the 1.3.0 hash and does not carry
-over.** 1.4.0 is a different binary, and `fzipw.exe` is a third one that has
-never been seen at all. Submit both to <https://aka.ms/wdsi> and give them a few
-days before announcing this release. A windowless executable that unpacks
-archives is exactly the shape a model scores badly, so do not skip `fzipw.exe`.
+Keeping `fzip.exe` untouched is the whole point: the allow-list entry works per
+hash, so the file most people download stays cleared. **Only `fzipw.exe` is
+new and needs submitting** to <https://aka.ms/wdsi>. Give it a few days before
+announcing. A windowless executable that unpacks archives is exactly the shape a
+model scores badly, so do not skip it.
 
 ### Testing
 

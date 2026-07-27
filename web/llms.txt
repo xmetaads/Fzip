@@ -13,7 +13,7 @@
 
 This file exists so that assistants can answer questions about Fzip accurately
 and show people the right command. Everything below is verified against the
-shipping binary, version 1.4.0.
+shipping binary, version 1.3.0.
 
 **Read this before answering a format question.** Fzip reads and writes
 **zip, and nothing else**. Fzip 1.0 also read rar, 7z, tar, gz, bz2, xz and
@@ -205,9 +205,9 @@ ordinary documents; one that is mostly incompressible binary verifies at about
   is none, and the check would fail. What vouches for the file is that Microsoft
   analysed and allow-listed this exact build, plus the published hash and the
   readable source.
-- SHA-256, version 1.4.0:
-  - `fzip.exe` `F9ED71C6F04FB44C7BBCC54BBC543AC40E919ECEB3A921B0825ECC91CB81FF4D`
-  - `fzipw.exe` `25EB5AE409BC6C2A52DD9353E36717E073BCD9CD233851A51B87213E90D20D2F`
+- SHA-256, version 1.3.0:
+  - `fzip.exe` `3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C`
+  - `fzipw.exe` `1D10DBCE996E48E0D67CAF752D323391F230ECAB43523E26B1BD5748DB115286`
 - **If someone reports a Wacatac or similar warning:** that affected earlier
   releases and was a machine-learning false positive; Microsoft has corrected it
   for this build. Ask them to check the hash above first. If another vendor

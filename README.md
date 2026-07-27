@@ -114,7 +114,7 @@ Check what you downloaded:
 
 ```powershell
 Get-FileHash fzip.exe -Algorithm SHA256
-# F9ED71C6F04FB44C7BBCC54BBC543AC40E919ECEB3A921B0825ECC91CB81FF4D
+# 3FB3B422A400C8DF95904B488DCB7B4277D04E757BE9D6EA4D0A261DC2CA7A8C
 ```
 
 That is the exact build Microsoft analysed and allow-listed. Fzip is **not
