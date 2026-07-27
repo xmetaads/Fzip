@@ -165,6 +165,61 @@ if ($LASTEXITCODE -ge 2) { throw "fzip failed with exit code $LASTEXITCODE" }
 
 ---
 
+## Installers, services and scheduled tasks
+
+`fzip.exe` is a console program, so when an MSI custom action or a service
+launches it, Windows allocates a console and a black window flashes for a
+fraction of a second. That is Windows doing what it is told, not a fault in
+Fzip — but in an enterprise installer it looks like one.
+
+Ship **`fzipw.exe`** instead. It is the same program with one field changed in
+the executable header: no console is ever allocated, so no window can appear.
+The convention is Windows' own — `python.exe` / `pythonw.exe`,
+`java.exe` / `javaw.exe`.
+
+> `fzipw.exe` ships from **1.4.0**. The current download is 1.3.0, which contains
+> `fzip.exe` only; 1.4.0 is built and tested and is waiting on a Microsoft
+> false-positive review before publication, because a new binary starts with no
+> reputation and we would rather not hand you one that gets blocked.
+
+```
+fzipw x payload.zip -o "%INSTALLFOLDER%"
+```
+
+Everything else is identical: same options, same exit codes, same archives.
+
+**Two things to know before you script it.**
+
+It prints nothing unless you redirect. With no console there is nowhere for
+output to go, so check the exit code — which is what an installer should do
+anyway. To capture a log, redirect and it reappears:
+
+```
+fzipw x payload.zip -o D:\app > install.log 2>&1
+```
+
+And **PowerShell does not wait for it.** Called plainly, PowerShell starts it and
+moves to the next line immediately, so `$LASTEXITCODE` means nothing and the
+files are not there yet. Ask for the wait:
+
+| Invocation | Waits | Exit code |
+|---|---|---|
+| `& fzipw x a.zip -o out` | no | meaningless |
+| `& fzipw x a.zip -o out \| Out-Null` | yes | correct |
+| `Start-Process fzipw -ArgumentList ... -Wait -PassThru` | yes | correct |
+| `cmd /c fzipw x a.zip -o out` | yes | correct |
+
+MSI custom actions, Task Scheduler, services and .NET's `Process.WaitForExit`
+all wait correctly on their own — they hold the process handle. The caveat is
+specific to calling it from a shell.
+
+**If you would rather not ship a second file:** WiX can suppress the window
+itself. `WixQuietExec` (in `WixUtilExtension`) runs a console program with
+`CREATE_NO_WINDOW`, and nothing appears. That is the supported route and needs
+no change on our side; `fzipw.exe` is for when you do not control the caller.
+
+---
+
 ## Formats
 
 **Reads:** zip. **Writes:** zip, with optional AES-256.

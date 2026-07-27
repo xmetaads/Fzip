@@ -611,6 +611,70 @@ $msg8 = & $FZIP x "$S\j8.zip" -o "$S\o_j8" --no-crc 2>&1 | Out-String
 Assert ($msg8 -match 'folder of that name already exists') `
        "J08 file-over-folder collision gives a readable message"
 
+Write-Output "===== K. fzipw.exe, the windowless build ====="
+
+# fzipw exists so an MSI custom action never flashes a console. It is the same
+# program with one PE header field changed, so the tests here check that the
+# change is exactly what was intended and nothing more.
+$FZIPW = Join-Path (Split-Path $FZIP) "fzipw.exe"
+if (Test-Path -LiteralPath $FZIPW) {
+
+  # K01: the whole point. Subsystem 2 = WINDOWS, which is what stops Windows
+  # allocating a console for the process.
+  function Get-Subsystem($path) {
+    $b = [System.IO.File]::ReadAllBytes($path)
+    $pe = [BitConverter]::ToInt32($b, 0x3C)
+    [BitConverter]::ToUInt16($b, $pe + 24 + 68)
+  }
+  $subC = Get-Subsystem $FZIP
+  $subW = Get-Subsystem $FZIPW
+  Assert (($subC -eq 3) -and ($subW -eq 2)) `
+         "K01 fzip.exe is CONSOLE ($subC) and fzipw.exe is WINDOWS ($subW)"
+
+  # K02: same program. Extract the same archive both ways and compare byte for byte.
+  # cmd /c is used because PowerShell does not wait for a windowless process -
+  # which is itself the subject of K04.
+  cmd /c "`"$FZIPW`" x `"$S\a1.zip`" -o `"$S\o_k2`" -q" | Out-Null
+  Assert ((HashDir "$S\o_k2") -eq $SRC) "K02 fzipw extracts identical bytes to fzip"
+
+  # K03: exit codes still reach the caller, which is what an installer checks.
+  cmd /c "`"$FZIPW`" x `"$S\does_not_exist.zip`"" 2>$null | Out-Null
+  $k3a = $LASTEXITCODE
+  cmd /c "`"$FZIPW`" x `"$S\c7.zip`" -o `"$S\o_k3`" -q" 2>$null | Out-Null
+  $k3b = $LASTEXITCODE
+  Assert (($k3a -eq 7) -and ($k3b -eq 2)) `
+         "K03 fzipw reports through exit codes (missing=$k3a, corrupt=$k3b)"
+
+  # K04: the documented caveat, pinned so it cannot regress into a surprise.
+  # A windowless process is not waited for by PowerShell, so anyone scripting it
+  # must pipe or use Start-Process -Wait. If this ever starts passing, the help
+  # text and the docs need updating.
+  $many = "$S\k4src"
+  New-Item -ItemType Directory -Force $many | Out-Null
+  1..200 | ForEach-Object { [System.IO.File]::WriteAllText("$many\f$_.txt", ("x" * 20000)) }
+  & $FZIP a "$S\k4.zip" $many -y -q --no-pause | Out-Null
+  & $FZIPW x "$S\k4.zip" -o "$S\o_k4" -q 2>$null
+  $immediately = @(Get-ChildItem "$S\o_k4" -Recurse -File -ErrorAction SilentlyContinue).Count
+  Start-Sleep -Seconds 3
+  $eventually = @(Get-ChildItem "$S\o_k4" -Recurse -File -ErrorAction SilentlyContinue).Count
+  Assert (($immediately -lt $eventually) -and ($eventually -eq 200)) `
+         "K04 PowerShell does not wait for fzipw ($immediately files at return, $eventually after) - documented"
+
+  # K05: piping makes PowerShell wait, which is the one-character workaround
+  # the documentation recommends.
+  & $FZIPW x "$S\k4.zip" -o "$S\o_k5" -q 2>$null | Out-Null
+  Assert (@(Get-ChildItem "$S\o_k5" -Recurse -File -ErrorAction SilentlyContinue).Count -eq 200) `
+         "K05 piping fzipw to Out-Null makes PowerShell wait for it"
+
+  # K06: both carry the same version resource, so an installer inspecting either
+  # sees the same publisher and version.
+  $vC = (Get-Item $FZIP).VersionInfo
+  $vW = (Get-Item $FZIPW).VersionInfo
+  Assert (($vC.FileVersion -eq $vW.FileVersion) -and ($vW.CompanyName -eq 'Tcoder LLC')) `
+         "K06 fzipw carries the same version resource ($($vW.FileVersion), $($vW.CompanyName))"
+
+} else { Skip "K01-K06 fzipw" "fzipw.exe not built" }
+
 Write-Output ""
 Write-Output "================================================================"
 Write-Output "TOTAL: $script:pass passed, $script:fail failed, $script:skip skipped"

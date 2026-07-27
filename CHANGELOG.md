@@ -3,6 +3,87 @@
 All notable changes to **Fzip**, published by Tcoder LLC.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-07-26
+
+Adds **`fzipw.exe`**, a second executable for installers and scheduled tasks. It
+is the same program with one field changed in the PE header — subsystem
+`WINDOWS` instead of `CONSOLE` — which is what stops Windows allocating a
+console, which is what stops the black window flashing when an MSI custom action
+runs Fzip.
+
+`fzip.exe` is unchanged in behaviour. Nobody has to switch.
+
+### Why a second binary rather than changing the one
+
+The obvious fix is to flip `fzip.exe` itself to the Windows subsystem. That was
+measured before being rejected. Launched the way a double-click launches it:
+
+| | `fzip.exe` (console) | Windows-subsystem build |
+|---|---|---|
+| `GetConsoleWindow()` | a real window | **0** |
+| stdout handle | valid | **NULL** |
+| Double-click | help screen, then pauses | **nothing at all** |
+| Drag-and-drop a zip | progress bar, result | **silent, no error if it fails** |
+
+Everything printed would go to a null handle. The help screen the site
+documents, the progress bar, the error when an archive is corrupt — all of it
+would vanish for the people Fzip was built for. So: two binaries, the same
+convention Windows itself uses for `python.exe` / `pythonw.exe` and
+`java.exe` / `javaw.exe`.
+
+### The caveat, stated up front
+
+**PowerShell does not wait for a windowless process.** Measured: `& fzipw x
+big.zip -o out` returned after 9 ms with zero files extracted, and `$LASTEXITCODE`
+was meaningless. The work finished a second later.
+
+This is inherent to the subsystem flag, not a bug that can be fixed inside the
+program. Callers that hold the process handle — MSI custom actions, Task
+Scheduler, services, `Process.WaitForExit` — behave correctly and get the real
+exit code. From a shell you must ask for the wait:
+
+| Invocation | Waits | Exit code |
+|---|---|---|
+| `& fzipw x a.zip -o out` | **no** | meaningless |
+| `& fzipw x a.zip -o out \| Out-Null` | yes | correct |
+| `Start-Process fzipw -ArgumentList ... -Wait -PassThru` | yes | correct |
+| `cmd /c fzipw x a.zip -o out` | yes | correct |
+
+Test `K04` pins the misbehaviour deliberately, so that if a future Windows
+release changes it, the suite says so rather than the documentation quietly
+going stale.
+
+### Also worth knowing: WiX can already fix this without Fzip
+
+If you would rather not ship a second file, WiX's `WixQuietExec` custom action
+(in `WixUtilExtension`) runs a console program with `CREATE_NO_WINDOW` and no
+window appears. That is the supported, documented route and it needs no change
+to Fzip at all. `fzipw.exe` exists for the cases where you do not control the
+caller.
+
+### Changed
+
+- The implementation moved into a library so both executables are literally the
+  same code. `src/main.rs` became `src/lib.rs` plus two three-line binaries in
+  `src/bin/`. No logic changed.
+- `fzip -h` now names `fzipw.exe` and its caveat, so someone hitting the flashing
+  window finds the answer without leaving the terminal.
+
+### Note on the Microsoft allow-list
+
+**The allow-list entry Microsoft granted covers the 1.3.0 hash and does not carry
+over.** 1.4.0 is a different binary, and `fzipw.exe` is a third one that has
+never been seen at all. Submit both to <https://aka.ms/wdsi> and give them a few
+days before announcing this release. A windowless executable that unpacks
+archives is exactly the shape a model scores badly, so do not skip `fzipw.exe`.
+
+### Testing
+
+73 integration tests and 15 unit tests, none skipped. Six of the integration
+tests are new and cover `fzipw` specifically: the subsystem field, byte-identical
+output, exit-code propagation, the wait caveat, its workaround, and the shared
+version resource.
+
 ## [1.3.0] - 2026-07-25
 
 Back to **Rust**, still **zip only**. The work went into what anyone vouching for

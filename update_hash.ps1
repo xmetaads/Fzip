@@ -12,8 +12,11 @@
 # =====================================================================
 [CmdletBinding(SupportsShouldProcess)]
 param(
-  [string]$Exe = (Join-Path $PSScriptRoot "target\release\fzip.exe")
+  [string]$Exe = (Join-Path $PSScriptRoot "target\release\fzip.exe"),
+  # Write the hash even when the built version differs from the published one.
+  [switch]$Force
 )
+$force = $Force.IsPresent
 
 $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $Exe)) {
@@ -64,6 +67,27 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 $hashPattern = '\b[A-Fa-f0-9]{64}\b'
 $changed = 0
 
+# Refuse to run when the built binary is a different version from the one the
+# site publishes. Running this script mid-development rewrites the live hash to
+# a build nobody can download - and worse, discards the hash Microsoft
+# allow-listed, since that entry is per-hash. Publish first, or pass -Force.
+$sitePath = Join-Path $PSScriptRoot 'vercel.json'
+if (Test-Path -LiteralPath $sitePath) {
+  $siteVersion = ([regex]::Match(
+    [IO.File]::ReadAllText($sitePath), '"X-Fzip-Version",\s*"value":\s*"([^"]+)"')).Groups[1].Value
+  if ($siteVersion -and $siteVersion -ne $version -and -not $force) {
+    Write-Output ""
+    Write-Warning "The site publishes $siteVersion but this binary is $version."
+    Write-Output "  Nothing was changed. The published hash is what people verify against, and"
+    Write-Output "  for Fzip it is also the hash Microsoft allow-listed - overwriting it with an"
+    Write-Output "  unreleased build breaks both."
+    Write-Output ""
+    Write-Output "  Run this only when $version is the build you are publishing, after it has"
+    Write-Output "  been submitted to https://aka.ms/wdsi. To override: .\update_hash.ps1 -Force"
+    exit 1
+  }
+}
+
 foreach ($rel in $targets) {
   $path = Join-Path $PSScriptRoot $rel
   if (-not (Test-Path -LiteralPath $path)) { Write-Warning "missing: $rel"; continue }
@@ -88,5 +112,17 @@ foreach ($rel in $targets) {
 
 Write-Output ""
 Write-Output "$changed file(s) updated."
+
+# fzipw.exe is published alongside fzip.exe and needs its own submission to
+# Microsoft, because the allow-list works per hash. Report it so it is not
+# forgotten - it is the file most likely to be scored badly, being a windowless
+# executable that unpacks archives.
+$w = Join-Path (Split-Path $Exe) "fzipw.exe"
+if (Test-Path -LiteralPath $w) {
+  Write-Output ""
+  Write-Output "fzipw.exe (ships alongside, submit this one too):"
+  Write-Output "  Size   : $((Get-Item -LiteralPath $w).Length) bytes"
+  Write-Output "  SHA-256: $((Get-FileHash -LiteralPath $w -Algorithm SHA256).Hash)"
+}
 Write-Output "Now verify nothing was missed:"
 Write-Output "  Select-String -Path web\*,*.md,vercel.json -Pattern '[A-F0-9]{64}' | Group-Object { `$_.Matches[0].Value } | Select-Object Count, Name"

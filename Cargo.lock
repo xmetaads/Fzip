@@ -177,7 +177,7 @@ dependencies = [
 
 [[package]]
 name = "fzip"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "aes",
  "crc32fast",

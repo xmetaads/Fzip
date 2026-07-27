@@ -3,7 +3,7 @@
   <assemblyIdentity
       type="win32"
       name="TcoderLLC.Fzip"
-      version="1.3.0.0"
+      version="1.4.0.0"
       processorArchitecture="amd64"/>
   <description>Fzip - fast portable zip tool, published by Tcoder LLC</description>
 

@@ -1,4 +1,4 @@
-﻿//! Fzip - fast portable zip tool for Windows.
+//! Fzip - fast portable zip tool for Windows.
 //!
 //! Copyright (c) 2026 Tcoder LLC. MIT licensed.
 //!
@@ -14,13 +14,20 @@
 //!   3. zune-inflate and libdeflate, the fastest DEFLATE codecs available
 //!
 //! Reads zip. Writes zip, optionally encrypted with AES-256.
+//!
+//! # Two executables, one implementation
+//!
+//! Everything lives here so that `fzip.exe` and `fzipw.exe` are the same program
+//! differing only in their PE subsystem field. See `src/bin/` - the difference is
+//! two lines, and it matters a great deal to anyone embedding Fzip in an
+//! installer.
 
-mod cli;
-mod common;
-mod crypto;
-mod safepath;
-mod zipread;
-mod zipwrite;
+pub mod cli;
+pub mod common;
+pub mod crypto;
+pub mod safepath;
+pub mod zipread;
+pub mod zipwrite;
 
 use std::fs;
 use std::io::Write;
@@ -53,6 +60,11 @@ fn describe_foreign_format(head: &[u8]) -> Option<&'static str> {
 }
 
 /// Keep the window open when launched by double-click, like azcopy.exe does.
+///
+/// In `fzipw.exe` this is inert without a special case: with no console
+/// allocated, `GetConsoleProcessList` reports none owned and `should_pause`
+/// returns false. The silent build cannot hang waiting for a keypress even if
+/// someone forgets `--no-pause`.
 fn pause_if_own_console(no_pause: bool) {
     if common::should_pause(no_pause) {
         print!("\nPress Enter to exit...");
@@ -62,7 +74,9 @@ fn pause_if_own_console(no_pause: bool) {
     }
 }
 
-fn main() {
+/// The whole program, from argument parsing to exit code. Both executables call
+/// this and nothing else, so the two can never drift apart in behaviour.
+pub fn run_cli() -> i32 {
     common::init_console();
 
     let opts = match cli::parse() {
@@ -79,7 +93,7 @@ fn main() {
             // Argument parsing failed, so no --no-pause was captured; the
             // environment variable is still honoured inside should_pause.
             pause_if_own_console(false);
-            std::process::exit(code);
+            return code;
         }
     };
 
@@ -91,7 +105,7 @@ fn main() {
 
     let code = run(&opts);
     pause_if_own_console(opts.no_pause);
-    std::process::exit(code);
+    code
 }
 
 fn run(opts: &cli::Options) -> i32 {
@@ -184,4 +198,3 @@ mod tests {
         assert_eq!(describe_foreign_format(b"R"), None);
     }
 }
-

@@ -81,6 +81,27 @@ If you need those formats, keep a tool that has them. See
 [CHANGELOG.md](CHANGELOG.md) for what 1.3 fixed — including a zip bomb that
 could reach the disk before being caught.
 
+## Two executables
+
+| File | For | Console |
+|---|---|---|
+| `fzip.exe` | people at a terminal, drag-and-drop | yes — output, progress bar, help on double-click |
+| `fzipw.exe` | MSI custom actions, services, scheduled tasks | **none, ever** — no window can flash |
+
+They are the same program. The only difference is one field in the PE header,
+and it is not a free win, so both are shipped rather than one being changed:
+
+- `fzipw.exe` **prints nothing** unless you redirect — with no console there is
+  nowhere for output to go. Check the exit code, or `> log.txt 2>&1`.
+- **PowerShell does not wait for it.** Measured: `& fzipw x big.zip -o out`
+  returned in 9 ms with zero files extracted. Use `Start-Process -Wait
+  -PassThru`, `cmd /c`, or pipe to `Out-Null`. MSI custom actions, Task
+  Scheduler and `Process.WaitForExit` wait correctly by themselves.
+
+If you control the WiX script, you may not need the second file at all:
+`WixQuietExec` runs a console program with `CREATE_NO_WINDOW` and no window
+appears. `fzipw.exe` is for when you do not control the caller.
+
 ## Install
 
 Download: **<https://fzip.org/download/fzip.exe>**
@@ -160,7 +181,7 @@ directly against the Win32 API, so there is no portable build.
 ```powershell
 cargo test --release   # 15 unit tests
 cargo clippy --release --all-targets
-.\run_tests.ps1        # 67 integration tests
+.\run_tests.ps1        # 73 integration tests
 .\run_bench.ps1        # comparative benchmark
 ```
 
@@ -199,7 +220,9 @@ Visual C++ Redistributable. For scale: Windows' own `tar.exe` and WinRAR's
 ## Layout
 
 ```
-src/main.rs         entry point, format detection, the double-click pause
+src/lib.rs          the program: format detection, the double-click pause
+src/bin/fzip.rs     console executable (three lines)
+src/bin/fzipw.rs    windowless executable for installers (three lines)
 src/cli.rs          argument parsing, glob filters, help
 src/common.rs       exit codes, formatting, DOS timestamps, progress bar
 src/safepath.rs     zip-slip defence, device names, long paths

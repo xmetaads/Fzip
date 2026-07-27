@@ -1,6 +1,6 @@
 [package]
 name = "fzip"
-version = "1.3.0"
+version = "1.4.0"
 edition = "2021"
 rust-version = "1.85"
 authors = ["Tcoder LLC"]
@@ -11,6 +11,23 @@ repository = "https://github.com/xmetaads/Fzip"
 readme = "README.md"
 keywords = ["zip", "archive", "extract", "windows", "aes"]
 categories = ["compression", "command-line-utilities"]
+
+# One implementation, two executables. They differ only in the PE subsystem
+# field: fzip.exe keeps a console so a person can see what happened; fzipw.exe
+# has none, so an MSI custom action or a scheduled task never flashes a black
+# window. Same convention as python.exe / pythonw.exe. The logic lives in the
+# library so the pair cannot drift apart.
+[lib]
+name = "fzip"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fzip"
+path = "src/bin/fzip.rs"
+
+[[bin]]
+name = "fzipw"
+path = "src/bin/fzipw.rs"
 
 # Every dependency below is reachable from a code path Fzip actually runs. The
 # binary is code-signed by Tcoder LLC, so anything linked into it is something

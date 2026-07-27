@@ -374,4 +374,11 @@ pub fn print_help() {
     println!("Tip: you can also drag a .zip file onto fzip.exe.");
     println!();
     println!("EXIT CODES: 0 = ok, 1 = warning, 2 = error, 7 = bad command line");
+    println!();
+    println!("INSTALLERS AND SCHEDULED TASKS:");
+    println!("  fzipw.exe is the same program with no console, so an MSI custom");
+    println!("  action or a service never flashes a black window. Use it there,");
+    println!("  and fzip.exe everywhere a person is watching.");
+    println!("  It prints nothing unless you redirect, and PowerShell does NOT");
+    println!("  wait for it - use Start-Process -Wait, or pipe it to Out-Null.");
 }
